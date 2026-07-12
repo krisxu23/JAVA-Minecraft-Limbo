@@ -19,7 +19,7 @@ sing-box + Minecraft 伪装服务器，一个二进制支持多协议节点
 
 | 协议 | 传输层 | 配置项 | 说明 |
 |---|---|---|---|
-| VLESS + WS | TCP | `wsPort` | 走 Argo 隧道，支持 CF CDN |
+| VMess + WS | TCP | `wsPort` | 走 Argo 隧道，支持 CF CDN |
 | VLESS + Reality | TCP | `realityPort` | TLS 伪装，最高隐蔽性 |
 | Hysteria2 | UDP | `hy2Port` | QUIC 加速 |
 | TUIC v5 | UDP | `tuicPort` | QUIC 低延迟 |
