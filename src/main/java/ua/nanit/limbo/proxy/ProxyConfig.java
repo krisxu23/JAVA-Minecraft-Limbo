@@ -24,21 +24,22 @@ public class ProxyConfig {
     private String realityShortId;
 
     // 各协议端口配置（留空=不启用）
-    private String wsPort;        // VLESS+WS 端口（Argo 转发用）
+    private String wsPort;        // VMess+WS 端口（Argo 转发用）
     private String realityPort;   // VLESS+Reality 端口
     private String hy2Port;       // Hysteria2 端口
     private String tuicPort;      // TUIC 端口
-    private String ssPort;        // Shadowsocks 端口
-    private String trojanPort;    // Trojan 端口
+    private String socks5Port;    // SOCKS5 端口
+    private String anytlsPort;    // AnyTLS 端口
 
     // TUIC 专用
     private String tuicPassword;
 
-    // Shadowsocks 专用
-    private String ssPassword;
+    // SOCKS5 专用
+    private String socks5User;
+    private String socks5Password;
 
-    // Trojan 专用
-    private String trojanPassword;
+    // AnyTLS 专用
+    private String anytlsPassword;
 
     // 优选 IP/域名
     private String cfIp;
@@ -66,11 +67,12 @@ public class ProxyConfig {
         this.realityPort = "";
         this.hy2Port = "";
         this.tuicPort = "";
-        this.ssPort = "";
-        this.trojanPort = "";
+        this.socks5Port = "";
+        this.anytlsPort = "";
         this.tuicPassword = "";
-        this.ssPassword = "";
-        this.trojanPassword = "";
+        this.socks5User = "";
+        this.socks5Password = "";
+        this.anytlsPassword = "";
         this.cfIp = "www.shopify.com";
         this.cfPort = "443";
     }
@@ -78,8 +80,8 @@ public class ProxyConfig {
     private static final String[] ALL_ENV_KEYS = {
         "DOMAIN", "PORT", "UUID", "REMARKS_PREFIX",
         "SINGBOX_VERSION", "ARGO_VERSION", "ARGO_DOMAIN", "ARGO_TOKEN",
-        "WS_PORT", "REALITY_PORT", "HY2_PORT", "TUIC_PORT", "SS_PORT", "TROJAN_PORT",
-        "TUIC_PASSWORD", "SS_PASSWORD", "TROJAN_PASSWORD",
+        "WS_PORT", "REALITY_PORT", "HY2_PORT", "TUIC_PORT", "SOCKS5_PORT", "ANYTLS_PORT",
+        "TUIC_PASSWORD", "SOCKS5_USER", "SOCKS5_PASSWORD", "ANYTLS_PASSWORD",
         "CFIP", "CFPORT"
     };
 
@@ -100,11 +102,12 @@ public class ProxyConfig {
                 case "REALITY_PORT":    realityPort = value; break;
                 case "HY2_PORT":        hy2Port = value; break;
                 case "TUIC_PORT":       tuicPort = value; break;
-                case "SS_PORT":         ssPort = value; break;
-                case "TROJAN_PORT":     trojanPort = value; break;
+                case "SOCKS5_PORT":     socks5Port = value; break;
+                case "ANYTLS_PORT":     anytlsPort = value; break;
                 case "TUIC_PASSWORD":   tuicPassword = value; break;
-                case "SS_PASSWORD":     ssPassword = value; break;
-                case "TROJAN_PASSWORD": trojanPassword = value; break;
+                case "SOCKS5_USER":     socks5User = value; break;
+                case "SOCKS5_PASSWORD": socks5Password = value; break;
+                case "ANYTLS_PASSWORD": anytlsPassword = value; break;
                 case "CFIP":            cfIp = value; break;
                 case "CFPORT":          cfPort = value; break;
             }
@@ -112,15 +115,16 @@ public class ProxyConfig {
 
         // 自动生成各协议密码（如果未设置）
         if (tuicPassword.isEmpty()) tuicPassword = uuid;
-        if (ssPassword.isEmpty()) ssPassword = UUID.randomUUID().toString().substring(0, 16);
-        if (trojanPassword.isEmpty()) trojanPassword = uuid;
+        if (socks5User.isEmpty()) socks5User = "xah";
+        if (socks5Password.isEmpty()) socks5Password = uuid;
+        if (anytlsPassword.isEmpty()) anytlsPassword = uuid;
     }
 
     public boolean isRealityEnabled() { return !realityPort.isEmpty(); }
     public boolean isHy2Enabled()     { return !hy2Port.isEmpty(); }
     public boolean isTuicEnabled()    { return !tuicPort.isEmpty(); }
-    public boolean isSsEnabled()      { return !ssPort.isEmpty(); }
-    public boolean isTrojanEnabled()  { return !trojanPort.isEmpty(); }
+    public boolean isSocks5Enabled()  { return !socks5Port.isEmpty(); }
+    public boolean isAnytlsEnabled()  { return !anytlsPort.isEmpty(); }
 
     // --- getters / setters ---
 
@@ -169,20 +173,23 @@ public class ProxyConfig {
     public String getTuicPort() { return tuicPort; }
     public void setTuicPort(String tuicPort) { this.tuicPort = tuicPort; }
 
-    public String getSsPort() { return ssPort; }
-    public void setSsPort(String ssPort) { this.ssPort = ssPort; }
+    public String getSocks5Port() { return socks5Port; }
+    public void setSocks5Port(String socks5Port) { this.socks5Port = socks5Port; }
 
-    public String getTrojanPort() { return trojanPort; }
-    public void setTrojanPort(String trojanPort) { this.trojanPort = trojanPort; }
+    public String getAnytlsPort() { return anytlsPort; }
+    public void setAnytlsPort(String anytlsPort) { this.anytlsPort = anytlsPort; }
 
     public String getTuicPassword() { return tuicPassword; }
     public void setTuicPassword(String tuicPassword) { this.tuicPassword = tuicPassword; }
 
-    public String getSsPassword() { return ssPassword; }
-    public void setSsPassword(String ssPassword) { this.ssPassword = ssPassword; }
+    public String getSocks5User() { return socks5User; }
+    public void setSocks5User(String socks5User) { this.socks5User = socks5User; }
 
-    public String getTrojanPassword() { return trojanPassword; }
-    public void setTrojanPassword(String trojanPassword) { this.trojanPassword = trojanPassword; }
+    public String getSocks5Password() { return socks5Password; }
+    public void setSocks5Password(String socks5Password) { this.socks5Password = socks5Password; }
+
+    public String getAnytlsPassword() { return anytlsPassword; }
+    public void setAnytlsPassword(String anytlsPassword) { this.anytlsPassword = anytlsPassword; }
 
     public String getCfIp() { return cfIp; }
     public void setCfIp(String cfIp) { this.cfIp = cfIp; }

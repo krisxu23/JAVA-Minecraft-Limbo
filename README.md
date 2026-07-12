@@ -23,8 +23,8 @@ sing-box + Minecraft 伪装服务器，一个二进制支持多协议节点
 | VLESS + Reality | TCP | `realityPort` | TLS 伪装，最高隐蔽性 |
 | Hysteria2 | UDP | `hy2Port` | QUIC 加速 |
 | TUIC v5 | UDP | `tuicPort` | QUIC 低延迟 |
-| Shadowsocks 2022 | TCP | `ssPort` | 经典协议 |
-| Trojan | TCP | `trojanPort` | HTTPS 伪装 |
+| SOCKS5 | TCP | `socks5Port` | 经典代理协议 |
+| AnyTLS | TCP | `anytlsPort` | TLS 伪装代理 |
 | Argo 隧道 | - | `argoToken` | Cloudflare 隧道 |
 
 端口留空 = 不启用，填了端口号 = 启用该协议

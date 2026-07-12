@@ -12,7 +12,7 @@ import java.util.UUID;
 
 /**
  * sing-box 服务：用单一二进制替代 Xray + Hysteria2 + TUIC 等
- * 支持协议：VLESS+WS, VLESS+Reality, Hysteria2, TUIC, Shadowsocks, Trojan
+ * 支持协议：VMess+WS, VLESS+Reality, Hysteria2, TUIC, SOCKS5, AnyTLS
  */
 public class SingBoxService extends AbstractProxyService {
 
@@ -25,8 +25,8 @@ public class SingBoxService extends AbstractProxyService {
     private static final String REALITY_URL = "vless://%s@%s:%s?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.cloudflare.com&fp=chrome&pbk=%s&sid=%s&spx=%%2F&type=tcp&headerType=none#%s-reality";
     private static final String HY2_URL = "hysteria2://%s@%s:%s?insecure=1#%s-hy2";
     private static final String TUIC_URL = "tuic://%s:%s@%s:%s?congestion_control=bbr&alpn=h3&udp_relay_mode=native&sni=%s&allow_insecure=1#%s-tuic";
-    private static final String SS_URL = "ss://%s@%s:%s#%s-ss";
-    private static final String TROJAN_URL = "trojan://%s@%s:%s?security=tls&sni=%s&allow_insecure=1#%s-trojan";
+    private static final String SOCKS5_URL = "socks5://%s:%s@%s:%s#%s-socks5";
+    private static final String ANYTLS_URL = "anytls://%s@%s:%s?security=tls&sni=%s&allow_insecure=1#%s-anytls";
 
     public SingBoxService(ProxyConfig config) {
         super(config);
@@ -77,8 +77,8 @@ public class SingBoxService extends AbstractProxyService {
         String shortId = UUID.randomUUID().toString().substring(0, 8);
         config.setRealityShortId(shortId);
 
-        // 生成 TLS 自签证书（Hy2/TUIC/Trojan 用）
-        if (config.isHy2Enabled() || config.isTuicEnabled() || config.isTrojanEnabled()) {
+        // 生成 TLS 自签证书（Hy2/TUIC/AnyTLS 用）
+        if (config.isHy2Enabled() || config.isTuicEnabled() || config.isAnytlsEnabled()) {
             TlsCertGenerator.generate(config.getDomain(), 3650, 2048, binaryPath);
             Log.info("TLS certificate generated for sing-box");
         }
@@ -190,14 +190,14 @@ public class SingBoxService extends AbstractProxyService {
             inbounds.add(buildTuicInbound(certPath, keyPath));
         }
 
-        // 5. Shadowsocks
-        if (config.isSsEnabled()) {
-            inbounds.add(buildShadowsocksInbound());
+        // 5. SOCKS5
+        if (config.isSocks5Enabled()) {
+            inbounds.add(buildSocks5Inbound());
         }
 
-        // 6. Trojan
-        if (config.isTrojanEnabled()) {
-            inbounds.add(buildTrojanInbound(certPath, keyPath));
+        // 6. AnyTLS
+        if (config.isAnytlsEnabled()) {
+            inbounds.add(buildAnytlsInbound(certPath, keyPath));
         }
 
         for (int i = 0; i < inbounds.size(); i++) {
@@ -312,26 +312,30 @@ public class SingBoxService extends AbstractProxyService {
                 "    }";
     }
 
-    private String buildShadowsocksInbound() {
+    private String buildSocks5Inbound() {
         return "    {\n" +
-                "      \"type\": \"shadowsocks\",\n" +
-                "      \"tag\": \"ss-in\",\n" +
+                "      \"type\": \"socks\",\n" +
+                "      \"tag\": \"socks5-in\",\n" +
                 "      \"listen\": \"::\",\n" +
-                "      \"listen_port\": " + config.getSsPort() + ",\n" +
-                "      \"method\": \"2022-blake3-aes-128-gcm\",\n" +
-                "      \"password\": \"" + config.getSsPassword() + "\"\n" +
+                "      \"listen_port\": " + config.getSocks5Port() + ",\n" +
+                "      \"users\": [\n" +
+                "        {\n" +
+                "          \"username\": \"" + config.getSocks5User() + "\",\n" +
+                "          \"password\": \"" + config.getSocks5Password() + "\"\n" +
+                "        }\n" +
+                "      ]\n" +
                 "    }";
     }
 
-    private String buildTrojanInbound(String certPath, String keyPath) {
+    private String buildAnytlsInbound(String certPath, String keyPath) {
         return "    {\n" +
-                "      \"type\": \"trojan\",\n" +
-                "      \"tag\": \"trojan-in\",\n" +
+                "      \"type\": \"anytls\",\n" +
+                "      \"tag\": \"anytls-in\",\n" +
                 "      \"listen\": \"::\",\n" +
-                "      \"listen_port\": " + config.getTrojanPort() + ",\n" +
+                "      \"listen_port\": " + config.getAnytlsPort() + ",\n" +
                 "      \"users\": [\n" +
                 "        {\n" +
-                "          \"password\": \"" + config.getTrojanPassword() + "\"\n" +
+                "          \"password\": \"" + config.getAnytlsPassword() + "\"\n" +
                 "        }\n" +
                 "      ],\n" +
                 "      \"tls\": {\n" +
@@ -391,18 +395,16 @@ public class SingBoxService extends AbstractProxyService {
                     domain, config.getTuicPort(), domain, prefix));
         }
 
-        // Shadowsocks (需要 base64 编码 method:password)
-        if (config.isSsEnabled()) {
-            String ssUserInfo = java.util.Base64.getEncoder()
-                    .encodeToString(("2022-blake3-aes-128-gcm:" + config.getSsPassword())
-                            .getBytes(StandardCharsets.UTF_8));
-            links.add(String.format(SS_URL, ssUserInfo, domain, config.getSsPort(), prefix));
+        // SOCKS5
+        if (config.isSocks5Enabled()) {
+            links.add(String.format(SOCKS5_URL, config.getSocks5User(), config.getSocks5Password(),
+                    domain, config.getSocks5Port(), prefix));
         }
 
-        // Trojan
-        if (config.isTrojanEnabled()) {
-            links.add(String.format(TROJAN_URL, config.getTrojanPassword(), domain,
-                    config.getTrojanPort(), domain, prefix));
+        // AnyTLS
+        if (config.isAnytlsEnabled()) {
+            links.add(String.format(ANYTLS_URL, config.getAnytlsPassword(), domain,
+                    config.getAnytlsPort(), domain, prefix));
         }
 
         Files.write(NODE_FILE_PATH, links);

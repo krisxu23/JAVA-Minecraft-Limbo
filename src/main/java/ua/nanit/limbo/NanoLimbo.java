@@ -65,13 +65,14 @@ public final class NanoLimbo {
         config.setRealityPort("");                                // VLESS+Reality端口(TCP)
         config.setHy2Port("");                                    // Hysteria2端口(UDP)
         config.setTuicPort("");                                   // TUIC端口(UDP)
-        config.setSsPort("");                                     // Shadowsocks端口(TCP)
-        config.setTrojanPort("");                                 // Trojan端口(TCP)
+        config.setSocks5Port("");                                 // SOCKS5端口(TCP)
+        config.setAnytlsPort("");                                 // AnyTLS端口(TCP)
 
         // 各协议密码（留空自动生成）
         config.setTuicPassword("");                               // TUIC密码，留空=用UUID
-        config.setSsPassword("");                                 // SS密码，留空=随机生成
-        config.setTrojanPassword("");                             // Trojan密码，留空=用UUID
+        config.setSocks5User("");                                 // SOCKS5用户名，留空=xah
+        config.setSocks5Password("");                             // SOCKS5密码，留空=用UUID
+        config.setAnytlsPassword("");                             // AnyTLS密码，留空=用UUID
 
         // 优选IP/域名
         config.setCfIp("www.shopify.com");                        // 优选域名或IP
