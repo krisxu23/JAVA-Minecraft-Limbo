@@ -158,16 +158,35 @@ public class ProxyConfig {
     public void setRealityShortId(String realityShortId) { this.realityShortId = realityShortId; }
 
     public String getWsPort() { return wsPort; }
+    public void setWsPort(String wsPort) { this.wsPort = wsPort; }
+
     public String getRealityPort() { return realityPort; }
+    public void setRealityPort(String realityPort) { this.realityPort = realityPort; }
+
     public String getHy2Port() { return hy2Port; }
+    public void setHy2Port(String hy2Port) { this.hy2Port = hy2Port; }
+
     public String getTuicPort() { return tuicPort; }
+    public void setTuicPort(String tuicPort) { this.tuicPort = tuicPort; }
+
     public String getSsPort() { return ssPort; }
+    public void setSsPort(String ssPort) { this.ssPort = ssPort; }
+
     public String getTrojanPort() { return trojanPort; }
+    public void setTrojanPort(String trojanPort) { this.trojanPort = trojanPort; }
 
     public String getTuicPassword() { return tuicPassword; }
+    public void setTuicPassword(String tuicPassword) { this.tuicPassword = tuicPassword; }
+
     public String getSsPassword() { return ssPassword; }
+    public void setSsPassword(String ssPassword) { this.ssPassword = ssPassword; }
+
     public String getTrojanPassword() { return trojanPassword; }
+    public void setTrojanPassword(String trojanPassword) { this.trojanPassword = trojanPassword; }
 
     public String getCfIp() { return cfIp; }
+    public void setCfIp(String cfIp) { this.cfIp = cfIp; }
+
     public String getCfPort() { return cfPort; }
+    public void setCfPort(String cfPort) { this.cfPort = cfPort; }
 }
