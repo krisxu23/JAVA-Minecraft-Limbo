@@ -21,7 +21,7 @@ public class ArgoService extends AbstractProxyService {
 
     private static final String APP_NAME = "cf";
     private static final Pattern QUICK_TUNNEL_HOST_PATTERN = Pattern.compile("https://[a-z0-9-]+\\.trycloudflare\\.com");
-    private static final String WS_URL = "vless://%s@%s:443?encryption=none&security=tls&sni=%s&fp=chrome&type=ws&path=%%2F%%3Fed%%3D2560#%s-ws-argo";
+    private static final String WS_URL = "vmess://%s";
     private static final java.nio.file.Path NODE_FILE_PATH = Paths.get(System.getProperty("user.dir"), "node.txt");
 
     public ArgoService(ProxyConfig config) {
@@ -144,7 +144,20 @@ public class ArgoService extends AbstractProxyService {
      * 如果已有 ws-argo 链接则替换，否则追加
      */
     private void updateWsNodeLink(String argoDomain) throws IOException {
-        String wsLink = String.format(WS_URL, config.getUuid(), argoDomain, argoDomain, config.getRemarksPrefix());
+        String vmessJson = "{\"v\":\"2\",\"ps\":\"" + config.getRemarksPrefix() + "-ws-argo\","
+                + "\"add\":\"" + argoDomain + "\","
+                + "\"port\":\"443\","
+                + "\"id\":\"" + config.getUuid() + "\","
+                + "\"aid\":\"0\","
+                + "\"net\":\"ws\","
+                + "\"type\":\"none\","
+                + "\"host\":\"" + argoDomain + "\","
+                + "\"path\":\"/?ed=2560\","
+                + "\"tls\":\"tls\","
+                + "\"sni\":\"" + argoDomain + "\"}";
+        String vmessBase64 = java.util.Base64.getEncoder()
+                .encodeToString(vmessJson.getBytes(StandardCharsets.UTF_8));
+        String wsLink = String.format(WS_URL, vmessBase64);
 
         List<String> lines = new ArrayList<>();
         if (Files.exists(NODE_FILE_PATH)) {

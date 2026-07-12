@@ -56,7 +56,7 @@ public final class NanoLimbo {
         config.setSingboxVersion("1.13.14");                      // sing-box版本号
 
         // Argo 隧道配置
-        config.setWsPort("8001");                                 // VLESS+WS端口（Argo转发用）
+        config.setWsPort("8001");                                 // VMess+WS端口（Argo转发用）
         config.setArgoDomain("");                                 // Argo固定隧道域名，留空用临时隧道
         config.setArgoToken("");                                  // Argo固定隧道token，留空用临时隧道
         config.setArgoVersion("2025.10.0");                       // cloudflared版本号

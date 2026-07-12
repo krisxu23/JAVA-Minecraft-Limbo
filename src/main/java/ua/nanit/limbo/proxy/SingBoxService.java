@@ -21,7 +21,7 @@ public class SingBoxService extends AbstractProxyService {
     private static final java.nio.file.Path NODE_FILE_PATH = Paths.get(System.getProperty("user.dir"), "node.txt");
 
     // 节点链接模板
-    private static final String WS_URL = "vless://%s@%s:443?encryption=none&security=tls&sni=%s&fp=chrome&type=ws&path=%%2F%%3Fed%%3D2560#%s-ws-argo";
+    private static final String WS_URL = "vmess://%s";
     private static final String REALITY_URL = "vless://%s@%s:%s?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.cloudflare.com&fp=chrome&pbk=%s&sid=%s&spx=%%2F&type=tcp&headerType=none#%s-reality";
     private static final String HY2_URL = "hysteria2://%s@%s:%s?insecure=1#%s-hy2";
     private static final String TUIC_URL = "tuic://%s:%s@%s:%s?congestion_control=bbr&alpn=h3&udp_relay_mode=native&sni=%s&allow_insecure=1#%s-tuic";
@@ -227,14 +227,14 @@ public class SingBoxService extends AbstractProxyService {
 
     private String buildVlessWsInbound() {
         return "    {\n" +
-                "      \"type\": \"vless\",\n" +
-                "      \"tag\": \"vless-ws-in\",\n" +
+                "      \"type\": \"vmess\",\n" +
+                "      \"tag\": \"vmess-ws-in\",\n" +
                 "      \"listen\": \"::\",\n" +
                 "      \"listen_port\": " + config.getWsPort() + ",\n" +
                 "      \"users\": [\n" +
                 "        {\n" +
                 "          \"uuid\": \"" + config.getUuid() + "\",\n" +
-                "          \"flow\": \"\"\n" +
+                "          \"alterId\": 0\n" +
                 "        }\n" +
                 "      ],\n" +
                 "      \"transport\": {\n" +
@@ -350,13 +350,26 @@ public class SingBoxService extends AbstractProxyService {
         String prefix = config.getRemarksPrefix();
         String domain = config.getDomain();
 
-        // VLESS+WS（走 Argo 隧道，使用 argoDomain 或 cfIp）
+        // VMess+WS（走 Argo 隧道，使用 argoDomain 或 cfIp）
         String wsAddr = config.getArgoDomain();
         if (wsAddr == null || wsAddr.isEmpty()) {
             wsAddr = config.getCfIp();
         }
         if (!wsAddr.isEmpty()) {
-            links.add(String.format(WS_URL, config.getUuid(), wsAddr, wsAddr, prefix));
+            String vmessJson = "{\"v\":\"2\",\"ps\":\"" + prefix + "-ws-argo\","
+                    + "\"add\":\"" + wsAddr + "\","
+                    + "\"port\":\"443\","
+                    + "\"id\":\"" + config.getUuid() + "\","
+                    + "\"aid\":\"0\","
+                    + "\"net\":\"ws\","
+                    + "\"type\":\"none\","
+                    + "\"host\":\"" + wsAddr + "\","
+                    + "\"path\":\"/?ed=2560\","
+                    + "\"tls\":\"tls\","
+                    + "\"sni\":\"" + wsAddr + "\"}";
+            String vmessBase64 = java.util.Base64.getEncoder()
+                    .encodeToString(vmessJson.getBytes(StandardCharsets.UTF_8));
+            links.add(String.format(WS_URL, vmessBase64));
         }
 
         // VLESS+Reality
