@@ -33,7 +33,7 @@ public class SingBoxService extends AbstractProxyService {
     }
 
     @Override
-    protected String getAppDownloadUrl() {
+    public String getAppDownloadUrl() {
         String version = config.getSingboxVersion();
         String arch = OS_IS_ARM ? "arm64" : "amd64";
         return "https://github.com/SagerNet/sing-box/releases/download/v" + version
@@ -417,7 +417,7 @@ public class SingBoxService extends AbstractProxyService {
     }
 
     @Override
-    protected String getAppName() {
+    public String getAppName() {
         return APP_NAME;
     }
 }

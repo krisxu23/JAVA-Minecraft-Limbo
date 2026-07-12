@@ -168,7 +168,7 @@ public class ArgoService extends AbstractProxyService {
     }
 
     @Override
-    protected String getAppName() {
+    public String getAppName() {
         return APP_NAME;
     }
 }
