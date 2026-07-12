@@ -53,7 +53,7 @@ public final class NanoLimbo {
         config.setRemarksPrefix("xah");                           // 节点备注前缀
 
         // sing-box 版本
-        config.setSingboxVersion("1.13.5");                       // sing-box版本号
+        config.setSingboxVersion("1.13.14");                      // sing-box版本号
 
         // Argo 隧道配置
         config.setWsPort("8001");                                 // VLESS+WS端口（Argo转发用）
