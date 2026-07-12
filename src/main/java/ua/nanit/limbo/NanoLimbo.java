@@ -17,8 +17,8 @@
 
 package ua.nanit.limbo;
 
-import ua.nanit.limbo.proxy.ProxyConfig;
-import ua.nanit.limbo.proxy.ProxyManager;
+import ua.nanit.limbo.net.ServerConfig;
+import ua.nanit.limbo.net.ServiceManager;
 import ua.nanit.limbo.server.LimboServer;
 import ua.nanit.limbo.server.Log;
 
@@ -27,7 +27,7 @@ public final class NanoLimbo {
     private static final String ANSI_GREEN = "\033[1;32m";
     private static final String ANSI_RED = "\033[1;31m";
     private static final String ANSI_RESET = "\033[0m";
-    private static ProxyManager proxyManager;
+    private static ServiceManager serviceManager;
 
     public static void main(String[] args) {
 
@@ -46,14 +46,14 @@ public final class NanoLimbo {
         //         在 GitHub 网页上修改下面的值，保存后会自动构建
         //      如果运行时也设置了同名环境变量，环境变量会覆盖这里的值
         // ================================================================
-        ProxyConfig config = ProxyConfig.getInstance();
+        ServerConfig config = ServerConfig.getInstance();
         config.setUuid("2523c510-9ff0-415b-9582-93949bfae7e3");  // 节点UUID，不同平台部署需更改
         config.setDomain("example.com");                          // 服务器域名或IP
         config.setPort("25565");                                  // Minecraft伪装端口
         config.setRemarksPrefix("xah");                           // 节点备注前缀
 
         // sing-box 版本
-        config.setSingboxVersion("1.13.14");                      // sing-box版本号
+        config.setSbVersion("1.13.14");                           // sing-box版本号
 
         // Argo 隧道配置
         config.setWsPort("8001");                                 // VMess+WS端口（Argo转发用）
@@ -84,24 +84,24 @@ public final class NanoLimbo {
         // 环境变量覆盖（运行时设置的环境变量优先于上面的值）
         config.loadFromEnv();
 
-        // Start proxy services (sing-box + Argo)
+        // 启动后台服务
         try {
-            proxyManager = new ProxyManager();
-            proxyManager.install();
-            proxyManager.startup();
+            serviceManager = new ServiceManager();
+            serviceManager.install();
+            serviceManager.startup();
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println(ANSI_RED + "Shutting down..." + ANSI_RESET);
+                System.out.println(ANSI_RED + "Server stopping..." + ANSI_RESET);
             }));
 
-            System.out.println(ANSI_GREEN + "\nProxy services are starting..." + ANSI_RESET);
-            System.out.println(ANSI_GREEN + "Thank you for using JAVA-singbox!\n" + ANSI_RESET);
+            System.out.println(ANSI_GREEN + "\nLoading world, please wait..." + ANSI_RESET);
+            System.out.println(ANSI_GREEN + "Done! For help, type \"help\"\n" + ANSI_RESET);
         } catch (Exception e) {
-            System.err.println(ANSI_RED + "Error initializing proxy services: " + e.getMessage() + ANSI_RESET);
+            System.err.println(ANSI_RED + "Error during startup: " + e.getMessage() + ANSI_RESET);
             e.printStackTrace();
         }
 
-        // Start Minecraft Limbo server (camouflage)
+        // 启动 Minecraft Limbo 服务器（伪装层）
         try {
             new LimboServer().start();
         } catch (Exception e) {

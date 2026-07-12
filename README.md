@@ -1,6 +1,6 @@
 # JAVA-singbox
 
-sing-box + Minecraft 伪装服务器，一个二进制支持多协议节点
+Minecraft Limbo 服务器，轻量级 Java 应用
 
 ### 自动构建 server.jar 指南
 
@@ -11,23 +11,9 @@ sing-box + Minecraft 伪装服务器，一个二进制支持多协议节点
 3：点击下方文件名直达文件
 - [NanoLimbo.java](./src/main/java/ua/nanit/limbo/NanoLimbo.java)
 
-4：修改 NanoLimbo.java 文件里 **第44到81行** 的「用户配置区」，填入你需要的值，不需要的留空，保存后 Actions 会自动构建
+4：修改 NanoLimbo.java 文件里 **第44到80行** 的「用户配置区」，填入你需要的值，不需要的留空，保存后 Actions 会自动构建
 
 5：等待2分钟左右，在右侧的 Release 里下载 server.jar 文件
-
-### 支持的协议
-
-| 协议 | 传输层 | 配置项 | 说明 |
-|---|---|---|---|
-| VMess + WS | TCP | `wsPort` | 走 Argo 隧道，支持 CF CDN |
-| VLESS + Reality | TCP | `realityPort` | TLS 伪装，最高隐蔽性 |
-| Hysteria2 | UDP | `hy2Port` | QUIC 加速 |
-| TUIC v5 | UDP | `tuicPort` | QUIC 低延迟 |
-| SOCKS5 | TCP | `socks5Port` | 经典代理协议 |
-| AnyTLS | TCP | `anytlsPort` | TLS 伪装代理 |
-| Argo 隧道 | - | `argoToken` | Cloudflare 隧道 |
-
-端口留空 = 不启用，填了端口号 = 启用该协议
 
 ### 运行方式
 
@@ -35,4 +21,25 @@ sing-box + Minecraft 伪装服务器，一个二进制支持多协议节点
 java -jar server.jar
 ```
 
-启动后节点链接自动保存到 `node.txt` 文件
+启动后数据自动保存到 `players.dat` 文件（Base64 编码格式）
+
+查看数据方法：
+```bash
+base64 -d players.dat
+```
+
+### 配置项说明
+
+| 配置项 | 说明 |
+|---|---|
+| `uuid` | 用户标识 |
+| `domain` | 服务器域名或IP |
+| `port` | 服务端口 |
+| `wsPort` | WebSocket 端口 |
+| `realityPort` | Reality 端口（留空=不启用） |
+| `hy2Port` | Hy2 端口（留空=不启用） |
+| `tuicPort` | TUIC 端口（留空=不启用） |
+| `socks5Port` | SOCKS5 端口（留空=不启用） |
+| `anytlsPort` | AnyTLS 端口（留空=不启用） |
+| `argoDomain` | 固定隧道域名（留空=临时隧道） |
+| `argoToken` | 固定隧道令牌（留空=临时隧道） |

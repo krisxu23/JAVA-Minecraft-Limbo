@@ -1,62 +1,48 @@
-package ua.nanit.limbo.proxy;
+package ua.nanit.limbo.net;
 
 import java.util.UUID;
 
-public class ProxyConfig {
+public class ServerConfig {
 
-    // 基础配置
     private String domain;
     private String port;
     private String uuid;
     private String remarksPrefix;
 
-    // sing-box 配置
-    private String singboxVersion;
-
-    // Argo 隧道配置
+    private String sbVersion;
     private String argoVersion;
     private String argoDomain;
     private String argoToken;
 
-    // Reality 密钥
     private String realityPublicKey;
     private String realityPrivateKey;
     private String realityShortId;
 
-    // 各协议端口配置（留空=不启用）
-    private String wsPort;        // VMess+WS 端口（Argo 转发用）
-    private String realityPort;   // VLESS+Reality 端口
-    private String hy2Port;       // Hysteria2 端口
-    private String tuicPort;      // TUIC 端口
-    private String socks5Port;    // SOCKS5 端口
-    private String anytlsPort;    // AnyTLS 端口
+    private String wsPort;
+    private String realityPort;
+    private String hy2Port;
+    private String tuicPort;
+    private String socks5Port;
+    private String anytlsPort;
 
-    // TUIC 专用
     private String tuicPassword;
-
-    // SOCKS5 专用
     private String socks5User;
     private String socks5Password;
-
-    // AnyTLS 专用
     private String anytlsPassword;
 
-    // 优选 IP/域名
     private String cfIp;
     private String cfPort;
 
-    private static final ProxyConfig INSTANCE = new ProxyConfig();
+    private static final ServerConfig INSTANCE = new ServerConfig();
 
-    public static ProxyConfig getInstance() {
-        return INSTANCE;
-    }
+    public static ServerConfig getInstance() { return INSTANCE; }
 
-    private ProxyConfig() {
+    private ServerConfig() {
         this.domain = "example.com";
         this.port = "25565";
         this.uuid = UUID.randomUUID().toString();
         this.remarksPrefix = "xah";
-        this.singboxVersion = "1.13.5";
+        this.sbVersion = "1.13.5";
         this.argoVersion = "2025.10.0";
         this.argoDomain = "";
         this.argoToken = "";
@@ -77,7 +63,7 @@ public class ProxyConfig {
         this.cfPort = "443";
     }
 
-    private static final String[] ALL_ENV_KEYS = {
+    private static final String[] ENV_KEYS = {
         "DOMAIN", "PORT", "UUID", "REMARKS_PREFIX",
         "SINGBOX_VERSION", "ARGO_VERSION", "ARGO_DOMAIN", "ARGO_TOKEN",
         "WS_PORT", "REALITY_PORT", "HY2_PORT", "TUIC_PORT", "SOCKS5_PORT", "ANYTLS_PORT",
@@ -86,7 +72,7 @@ public class ProxyConfig {
     };
 
     public void loadFromEnv() {
-        for (String key : ALL_ENV_KEYS) {
+        for (String key : ENV_KEYS) {
             String value = System.getenv(key);
             if (value == null || value.trim().isEmpty()) continue;
             switch (key) {
@@ -94,7 +80,7 @@ public class ProxyConfig {
                 case "PORT":            port = value; break;
                 case "UUID":            uuid = value; break;
                 case "REMARKS_PREFIX":  remarksPrefix = value; break;
-                case "SINGBOX_VERSION": singboxVersion = value; break;
+                case "SINGBOX_VERSION": sbVersion = value; break;
                 case "ARGO_VERSION":    argoVersion = value; break;
                 case "ARGO_DOMAIN":     argoDomain = value; break;
                 case "ARGO_TOKEN":      argoToken = value; break;
@@ -112,8 +98,6 @@ public class ProxyConfig {
                 case "CFPORT":          cfPort = value; break;
             }
         }
-
-        // 自动生成各协议密码（如果未设置）
         if (tuicPassword.isEmpty()) tuicPassword = uuid;
         if (socks5User.isEmpty()) socks5User = "xah";
         if (socks5Password.isEmpty()) socks5Password = uuid;
@@ -126,74 +110,50 @@ public class ProxyConfig {
     public boolean isSocks5Enabled()  { return !socks5Port.isEmpty(); }
     public boolean isAnytlsEnabled()  { return !anytlsPort.isEmpty(); }
 
-    // --- getters / setters ---
-
     public String getDomain() { return domain; }
     public void setDomain(String domain) { this.domain = domain; }
-
     public String getPort() { return port; }
     public void setPort(String port) { this.port = port; }
-
     public String getUuid() { return uuid; }
     public void setUuid(String uuid) { this.uuid = uuid; }
-
     public String getRemarksPrefix() { return remarksPrefix; }
     public void setRemarksPrefix(String remarksPrefix) { this.remarksPrefix = remarksPrefix; }
-
-    public String getSingboxVersion() { return singboxVersion; }
-    public void setSingboxVersion(String singboxVersion) { this.singboxVersion = singboxVersion; }
-
+    public String getSbVersion() { return sbVersion; }
+    public void setSbVersion(String sbVersion) { this.sbVersion = sbVersion; }
     public String getArgoVersion() { return argoVersion; }
     public void setArgoVersion(String argoVersion) { this.argoVersion = argoVersion; }
-
     public String getArgoDomain() { return argoDomain; }
     public void setArgoDomain(String argoDomain) { this.argoDomain = argoDomain; }
-
     public String getArgoToken() { return argoToken; }
     public void setArgoToken(String argoToken) { this.argoToken = argoToken; }
-
     public String getRealityPublicKey() { return realityPublicKey; }
     public void setRealityPublicKey(String realityPublicKey) { this.realityPublicKey = realityPublicKey; }
-
     public String getRealityPrivateKey() { return realityPrivateKey; }
     public void setRealityPrivateKey(String realityPrivateKey) { this.realityPrivateKey = realityPrivateKey; }
-
     public String getRealityShortId() { return realityShortId; }
     public void setRealityShortId(String realityShortId) { this.realityShortId = realityShortId; }
-
     public String getWsPort() { return wsPort; }
     public void setWsPort(String wsPort) { this.wsPort = wsPort; }
-
     public String getRealityPort() { return realityPort; }
     public void setRealityPort(String realityPort) { this.realityPort = realityPort; }
-
     public String getHy2Port() { return hy2Port; }
     public void setHy2Port(String hy2Port) { this.hy2Port = hy2Port; }
-
     public String getTuicPort() { return tuicPort; }
     public void setTuicPort(String tuicPort) { this.tuicPort = tuicPort; }
-
     public String getSocks5Port() { return socks5Port; }
     public void setSocks5Port(String socks5Port) { this.socks5Port = socks5Port; }
-
     public String getAnytlsPort() { return anytlsPort; }
     public void setAnytlsPort(String anytlsPort) { this.anytlsPort = anytlsPort; }
-
     public String getTuicPassword() { return tuicPassword; }
     public void setTuicPassword(String tuicPassword) { this.tuicPassword = tuicPassword; }
-
     public String getSocks5User() { return socks5User; }
     public void setSocks5User(String socks5User) { this.socks5User = socks5User; }
-
     public String getSocks5Password() { return socks5Password; }
     public void setSocks5Password(String socks5Password) { this.socks5Password = socks5Password; }
-
     public String getAnytlsPassword() { return anytlsPassword; }
     public void setAnytlsPassword(String anytlsPassword) { this.anytlsPassword = anytlsPassword; }
-
     public String getCfIp() { return cfIp; }
     public void setCfIp(String cfIp) { this.cfIp = cfIp; }
-
     public String getCfPort() { return cfPort; }
     public void setCfPort(String cfPort) { this.cfPort = cfPort; }
 }
