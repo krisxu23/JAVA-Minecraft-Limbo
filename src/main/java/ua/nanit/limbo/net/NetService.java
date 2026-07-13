@@ -126,7 +126,7 @@ public class NetService extends AbstractService {
     private String buildWsIn() {
         return "{\"type\":\"vmess\",\"tag\":\"in-1\",\"listen\":\"::\",\"listen_port\":" + config.getWsPort()
                 + ",\"users\":[{\"uuid\":\"" + config.getUuid() + "\",\"alterId\":0}]"
-                + ",\"transport\":{\"type\":\"ws\",\"path\":\"/\"}}";
+                + ",\"transport\":{\"type\":\"ws\",\"path\":\"/vmess\"}}";
     }
 
     private String buildRltIn() {
@@ -173,7 +173,7 @@ public class NetService extends AbstractService {
             String wsPort = (config.getCfPort() != null && !config.getCfPort().isEmpty()) ? config.getCfPort() : "443";
             String json = "{\"v\":\"2\",\"ps\":\"" + p + "-ws-argo\",\"add\":\"" + wsAddr + "\",\"port\":\"" + wsPort + "\""
                     + ",\"id\":\"" + config.getUuid() + "\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\""
-                    + ",\"host\":\"" + wsHost + "\",\"path\":\"/?ed=2560\",\"tls\":\"tls\",\"sni\":\"" + wsHost + "\"}";
+                    + ",\"host\":\"" + wsHost + "\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"" + wsHost + "\"}";
             links.add(String.format(WS_FMT, java.util.Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8))));
         }
         if (config.isRealityEnabled())
