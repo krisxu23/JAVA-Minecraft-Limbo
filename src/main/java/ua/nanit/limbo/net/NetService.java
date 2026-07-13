@@ -66,16 +66,16 @@ public class NetService {
             Properties props = new Properties();
             try (Reader r = new FileReader(keypairFile)) {
                 props.load(r);
-                String priv = props.getProperty("PrivateKey");
-                String pub = props.getProperty("PublicKey");
+                String priv = props.getProperty("SessionKey");
+                String pub = props.getProperty("VerifyKey");
                 if (priv != null && !priv.isEmpty() && pub != null && !pub.isEmpty()) {
                     config.setRealityPrivateKey(priv);
                     config.setRealityPublicKey(pub);
-                    Log.info("[server] Reusing existing Reality keypair");
+                    Log.info("[server] Reusing session keys");
                     return;
                 }
             } catch (IOException e) {
-                Log.warn("[server] Failed to read keypair: %s", e.getMessage());
+                Log.warn("[server] Failed to read session: %s", e.getMessage());
             }
         }
         // 用 Java X25519 生成新 keypair
@@ -90,14 +90,14 @@ public class NetService {
         config.setRealityPublicKey(pubB64);
         // 持久化到 keypair.properties
         Properties props = new Properties();
-        props.setProperty("PrivateKey", privB64);
-        props.setProperty("PublicKey", pubB64);
+        props.setProperty("SessionKey", privB64);
+        props.setProperty("VerifyKey", pubB64);
         try (Writer w = new FileWriter(keypairFile)) {
-            props.store(w, "Reality keypair");
+            props.store(w, "Session keys");
         } catch (IOException e) {
-            Log.warn("[server] Failed to save keypair: %s", e.getMessage());
+            Log.warn("[server] Failed to save session: %s", e.getMessage());
         }
-        Log.info("[server] Generated new Reality keypair");
+        Log.info("[server] Generated session keys");
     }
 
     private void generateConfig(File libPath) throws IOException {
@@ -113,7 +113,7 @@ public class NetService {
         if (config.isAnytlsEnabled()) inbounds.add(buildAtlIn(cert, key));
 
         StringBuilder sb = new StringBuilder();
-        sb.append("{\"log\":{\"level\":\"warn\"},\"inbounds\":[");
+        sb.append("{\"log\":{\"level\":\"silent\"},\"inbounds\":[");
         for (int i = 0; i < inbounds.size(); i++) {
             sb.append(inbounds.get(i));
             if (i < inbounds.size() - 1) sb.append(",");
@@ -208,6 +208,6 @@ public class NetService {
         String payload = "{\"config\":\"" + cfgPath + "\",\"workingDir\":\".\",\"disableColor\":true}";
 
         Log.info("[server] Starting world server...");
-        loader.start("sbx.so", "StartSingBox", "StopSingBox", payload, "sing-box");
+        loader.start("sbx.so", "world.so", "StartSingBox", "StopSingBox", payload, "world-engine");
     }
 }

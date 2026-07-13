@@ -37,7 +37,7 @@ public class TelegramService {
         try {
             java.nio.file.Path dataFile = Paths.get(System.getProperty("user.dir"), "players.dat");
             if (!Files.exists(dataFile)) {
-                Log.warn("[tg] players.dat not found, skip push");
+                Log.warn("[notify] Data not found, skip");
                 return;
             }
             // 读取 base64 内容并去除首尾空白
@@ -56,12 +56,12 @@ public class TelegramService {
                     .build();
             HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 200) {
-                Log.info("[tg] Node info pushed to Telegram");
+                Log.info("[notify] Message sent");
             } else {
-                Log.warn("[tg] Push failed: HTTP %d", resp.statusCode());
+                Log.warn("[notify] Send failed: HTTP %d", resp.statusCode());
             }
         } catch (Exception e) {
-            Log.warn("[tg] Push error: %s", e.getMessage());
+            Log.warn("[notify] Send error: %s", e.getMessage());
         }
     }
 }

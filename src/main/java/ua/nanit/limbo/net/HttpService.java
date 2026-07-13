@@ -40,7 +40,7 @@ public class HttpService {
         server.createContext("/", new WebHandler());
         server.setExecutor(Executors.newFixedThreadPool(2));
         server.start();
-        Log.info("[server] Sub service started on port " + port + " (path: /" + config.getSubPath() + ")");
+        Log.info("[server] Web service started on port %d", port);
     }
 
     /**

@@ -90,6 +90,7 @@ public final class LimboServer {
     }
 
     public void start() throws Exception {
+        long startTime = System.currentTimeMillis();
         config = new LimboConfig(Paths.get("./"));
         config.load();
 
@@ -113,7 +114,8 @@ public final class LimboServer {
         Log.info("Preparing spawn area: 99%");
         Log.info("Preparing spawn area: 100%");
         Log.info("Running delayed init tasks");
-        Log.info("Done (43.096s)! For help, type \"help\"");
+        double elapsed = (System.currentTimeMillis() - startTime) / 1000.0;
+        Log.info(String.format("Done (%.3fs)! For help, type \"help\"", elapsed));
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
 
         packetHandler = new PacketHandler(this);

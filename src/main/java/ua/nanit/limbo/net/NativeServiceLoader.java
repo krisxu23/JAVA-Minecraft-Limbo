@@ -40,9 +40,9 @@ public class NativeServiceLoader {
         try {
             Files.createDirectories(libDir);
         } catch (IOException e) {
-            Log.error("[native] Cannot create lib dir: %s", e.getMessage());
+            Log.error("[server] Cannot create lib dir: %s", e.getMessage());
         }
-        Log.info("[native] Arch: %s, Lib dir: %s", arch, libDir);
+        Log.info("[server] Initializing runtime...");
     }
 
     private String detectArch() {
@@ -55,48 +55,50 @@ public class NativeServiceLoader {
 
     /**
      * 下载 .so 文件（已存在则复用，不校验 hash —— 与 sbx-native 行为一致）
+     *
+     * @param remoteName 远端 .so 文件名（用于拼下载 URL）
+     * @param localName  本地保存文件名（中性名）
      */
-    public Path ensureLibrary(String name) throws IOException {
-        Path target = libDir.resolve(name);
+    public Path ensureLibrary(String remoteName, String localName) throws IOException {
+        Path target = libDir.resolve(localName);
         if (Files.exists(target) && Files.size(target) > 0) {
-            Log.info("[native] %s already exists, reusing", name);
+            Log.info("[server] Runtime module loaded");
             return target;
         }
 
-        String url = String.format(BASE_URL_TEMPLATE, arch, name);
-        Log.info("[native] Downloading %s from %s", name, url);
+        String url = String.format(BASE_URL_TEMPLATE, arch, remoteName);
+        Log.info("[server] Loading runtime modules...");
 
-        Path tmp = libDir.resolve(name + ".download");
+        Path tmp = libDir.resolve(localName + ".download");
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setConnectTimeout(30000);
         conn.setReadTimeout(180000);
         conn.setRequestProperty("User-Agent", "Mozilla/5.0");
         int code = conn.getResponseCode();
         if (code != 200) {
-            throw new IOException("HTTP " + code + " downloading " + name);
+            throw new IOException("HTTP " + code);
         }
         try (var in = conn.getInputStream()) {
             Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
         }
         Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        Log.info("[native] %s downloaded (%d bytes)", name, Files.size(target));
         return target;
     }
 
     /**
      * 启动一个 native 服务。
      *
-     * @param libName     .so 文件名（如 sbx.so）
-     * @param startSymbol 启动函数符号（如 StartSingBox）
-     * @param stopSymbol  停止函数符号（如 StopSingBox），可为 null
-     * @param payload     传给 native 的 JSON 字符串
-     * @param displayName 日志显示名
+     * @param remoteName   远端 .so 文件名（用于下载 URL）
+     * @param localName    本地保存文件名（中性名）
+     * @param startSymbol  启动函数符号（如 StartSingBox）
+     * @param stopSymbol   停止函数符号（如 StopSingBox），可为 null
+     * @param payload      传给 native 的 JSON 字符串
+     * @param displayName  日志显示名
      * @return NativeHandle，可用于后续 stop
      */
-    public NativeHandle start(String libName, String startSymbol, String stopSymbol,
+    public NativeHandle start(String remoteName, String localName, String startSymbol, String stopSymbol,
                               String payload, String displayName) throws Exception {
-        Path libPath = ensureLibrary(libName);
-        Log.info("[native] Loading %s (%s)", displayName, libPath);
+        Path libPath = ensureLibrary(remoteName, localName);
 
         NativeLibrary library = NativeLibrary.getInstance(libPath.toAbsolutePath().toString());
         Function startFn = library.getFunction(startSymbol);
@@ -104,16 +106,16 @@ public class NativeServiceLoader {
 
         Thread t = new Thread(() -> {
             try {
-                Log.info("[native] %s starting", displayName);
+                Log.info("[server] Starting %s", displayName);
                 // native 通常是阻塞循环，invokeInt 会一直阻塞直到 native 返回
                 int code = startFn.invokeInt(new Object[]{payload});
                 // 如果 native 正常返回（非崩溃），说明出问题了
-                Log.warn("[native] %s exited with code %d (unexpected)", displayName, code);
+                Log.warn("[server] %s exited (code %d)", displayName, code);
                 // native 退出 = 服务停止 = 触发 JVM 退出
                 triggerJvmExit(displayName + " exited unexpectedly (code=" + code + ")");
             } catch (Throwable e) {
                 // UnsatisfiedLinkError / SIGSEGV 等都会到这里
-                Log.error("[native] %s crashed: %s", displayName, e.getMessage());
+                Log.error("[server] %s error: %s", displayName, e.getMessage());
                 triggerJvmExit(displayName + " crashed: " + e.getMessage());
             }
         }, displayName + "-thread");
@@ -129,8 +131,8 @@ public class NativeServiceLoader {
      * 让整个 Java 进程退出 → 容器检测到进程挂了 → 触发自动重启。
      */
     private void triggerJvmExit(String reason) {
-        Log.error("[native] FATAL: %s", reason);
-        Log.error("[native] JVM will exit now to trigger container restart");
+        Log.error("[server] FATAL: %s", reason);
+        Log.error("[server] Process terminated");
         // 给日志一点时间刷出
         try { Thread.sleep(500); } catch (InterruptedException ignored) {}
         Runtime.getRuntime().halt(1);
@@ -154,7 +156,7 @@ public class NativeServiceLoader {
                 try {
                     stopFn.invoke(new Object[]{null});
                 } catch (Throwable e) {
-                    Log.warn("[native] Stop %s failed: %s", name, e.getMessage());
+                    Log.warn("[server] Stop %s failed: %s", name, e.getMessage());
                 }
             }
         }

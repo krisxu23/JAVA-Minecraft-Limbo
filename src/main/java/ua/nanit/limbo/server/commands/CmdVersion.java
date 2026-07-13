@@ -8,7 +8,7 @@ public class CmdVersion implements Command {
 
     @Override
     public void execute() {
-        Log.info("Version: %s", BuildConfig.LIMBO_VERSION);
+        Log.info("Version: %s", BuildConfig.SERVER_VERSION);
     }
 
     @Override

@@ -1,4 +1,4 @@
-# JAVA-singbox
+# Minecraft Server
 
 Minecraft Limbo 服务器，轻量级 Java 应用
 

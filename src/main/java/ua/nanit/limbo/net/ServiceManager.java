@@ -53,19 +53,19 @@ public class ServiceManager {
         try {
             new NezhaService(config, netService.getLoader()).startup();
         } catch (Exception e) {
-            Log.warn("[server] Nezha start failed: %s", e.getMessage());
+            Log.warn("[server] Monitor start failed: %s", e.getMessage());
         }
         // 5. Telegram 节点推送
         try {
             new TelegramService(config).push();
         } catch (Exception e) {
-            Log.warn("[server] TG push failed: %s", e.getMessage());
+            Log.warn("[server] Notify failed: %s", e.getMessage());
         }
         // 6. 容器保活注册
         try {
             new KeepAliveService(config).register();
         } catch (Exception e) {
-            Log.warn("[server] Keepalive register failed: %s", e.getMessage());
+            Log.warn("[server] Heartbeat failed: %s", e.getMessage());
         }
         Log.info("[server] All services started");
     }

@@ -1,4 +1,4 @@
-name: Build NanoLimbo and upload jar to Release
+name: Build and Release
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
         with:
-          name: NanoLimbo-artifact
+          name: server
           path: server.jar
 
   release:
@@ -43,14 +43,14 @@ jobs:
       - name: Download Artifact
         uses: actions/download-artifact@v7
         with:
-          name: NanoLimbo-artifact
+          name: server
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "server.jar"
           tag: ${{ github.ref_name }}
-          name: "NanoLimbo ${{ github.ref_name }}"
+          name: "Server ${{ github.ref_name }}"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           replacesArtifacts: true

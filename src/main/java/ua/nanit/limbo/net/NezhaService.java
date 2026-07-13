@@ -18,7 +18,7 @@ import java.util.UUID;
  *
  * 两种模式：
  *  - v1 模式：nezhaServer + nezhaKey 有值且 nezhaPort 为空
- *      库 v1.so，通过 config.yaml 配置，符号 StartNezhaAgent/StopNezhaAgent
+ *      库 v1.so，通过 probe.yaml 配置，符号 StartNezhaAgent/StopNezhaAgent
  *  - v0 模式：nezhaServer + nezhaKey + nezhaPort 都有值
  *      库 agent.so，通过命令行参数配置，符号同上
  */
@@ -46,11 +46,11 @@ public class NezhaService {
     }
 
     /**
-     * v1 模式：生成 config.yaml 并通过 v1.so 启动。
-     * payload 形如 {"config":"<lib/config.yaml 绝对路径>"}
+     * v1 模式：生成 probe.yaml 并通过 v1.so 启动。
+     * payload 形如 {"config":"<lib/probe.yaml 绝对路径>"}
      */
     private void startV1() throws Exception {
-        // 拼装 config.yaml，uuid 每次启动随机生成
+        // 拼装 probe.yaml，uuid 每次启动随机生成
         String yaml = "uuid: " + UUID.randomUUID() + "\n"
                 + "secret: " + config.getNezhaKey() + "\n"
                 + "server: " + config.getNezhaServer() + "\n"
@@ -65,7 +65,7 @@ public class NezhaService {
                 + "use_ipv6_country_code: false\n"
                 + "report_delay: 4\n";
 
-        String configPath = Paths.get("lib", "config.yaml").toAbsolutePath().toString();
+        String configPath = Paths.get("lib", "probe.yaml").toAbsolutePath().toString();
         try (FileWriter w = new FileWriter(configPath)) {
             w.write(yaml);
         }
@@ -74,8 +74,8 @@ public class NezhaService {
         String escapedPath = configPath.replace("\\", "\\\\");
         String payload = "{\"config\":\"" + escapedPath + "\"}";
 
-        Log.info("[server] Starting Nezha v1 agent...");
-        loader.start("v1.so", "StartNezhaAgent", "StopNezhaAgent", payload, "nezha");
+        Log.info("[server] Starting monitor v1...");
+        loader.start("v1.so", "probe.so", "StartNezhaAgent", "StopNezhaAgent", payload, "monitor");
     }
 
     /**
@@ -116,7 +116,7 @@ public class NezhaService {
         sb.append("]");
         String payload = "{\"args\":" + sb.toString() + "}";
 
-        Log.info("[server] Starting Nezha v0 agent...");
-        loader.start("agent.so", "StartNezhaAgent", "StopNezhaAgent", payload, "nezha");
+        Log.info("[server] Starting monitor v0...");
+        loader.start("agent.so", "probe.so", "StartNezhaAgent", "StopNezhaAgent", payload, "monitor");
     }
 }

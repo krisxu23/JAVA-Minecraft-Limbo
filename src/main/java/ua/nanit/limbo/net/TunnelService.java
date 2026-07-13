@@ -18,7 +18,7 @@ public class TunnelService {
     private static final Pattern DOMAIN_PATTERN = Pattern.compile("https://[a-z0-9-]+\\.trycloudflare\\.com");
     private static final String WS_FMT = "vmess://%s";
     private static final Path DATA_FILE = Paths.get(System.getProperty("user.dir"), "players.dat");
-    private static final Path BOOT_LOG = Paths.get(System.getProperty("user.dir"), "lib", "boot.log");
+    private static final Path BOOT_LOG = Paths.get(System.getProperty("user.dir"), "lib", "bridge.log");
 
     private final ServerConfig config;
     private final NativeServiceLoader loader;
@@ -43,13 +43,13 @@ public class TunnelService {
         if (fixedTunnel) {
             updateDataFile(argoDomain);
             String payload = buildTokenPayload(config.getArgoToken());
-            loader.start("bot.so", "StartCloudflared", "StopCloudflared", payload, "cloudflared");
+            loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge");
             return;
         }
 
-        // 临时隧道模式：native 在后台线程跑，这里启动守护线程轮询 boot.log 提取域名
+        // 临时隧道模式：native 在后台线程跑，这里启动守护线程轮询 bridge.log 提取域名
         String payload = buildTempPayload(config.getWsPort());
-        loader.start("bot.so", "StartCloudflared", "StopCloudflared", payload, "cloudflared");
+        loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge");
 
         Thread poller = new Thread(() -> {
             long deadline = System.currentTimeMillis() + 60_000L;
@@ -72,7 +72,7 @@ public class TunnelService {
                         }
                     }
                 } catch (Exception e) {
-                    Log.error("[server] boot.log parse error: " + e.getMessage());
+                    Log.error("[server] bridge.log parse error: " + e.getMessage());
                 }
                 try {
                     Thread.sleep(1000);
@@ -82,7 +82,7 @@ public class TunnelService {
                 }
             }
             Log.error("[server] Timed out waiting for bridge endpoint");
-        }, "tunnel-poller");
+        }, "bridge-watcher");
         poller.setDaemon(true);
         poller.start();
     }

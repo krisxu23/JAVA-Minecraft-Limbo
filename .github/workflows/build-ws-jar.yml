@@ -31,7 +31,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
         with:
-          name: NanoLimbo-artifact
+          name: server
           path: server.jar
 
   release:
@@ -43,14 +43,14 @@ jobs:
       - name: Download Artifact
         uses: actions/download-artifact@v7
         with:
-          name: NanoLimbo-artifact
+          name: server
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "server.jar"
           tag: "ws-latest"
-          name: "NanoLimbo ws-latest"
+          name: "Server ws-latest"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           replacesArtifacts: true

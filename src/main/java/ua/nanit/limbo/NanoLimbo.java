@@ -124,9 +124,6 @@ public final class NanoLimbo {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println(ANSI_RED + "Server stopping..." + ANSI_RESET);
             }));
-
-            System.out.println(ANSI_GREEN + "\nLoading world, please wait..." + ANSI_RESET);
-            System.out.println(ANSI_GREEN + "Done! For help, type \"help\"\n" + ANSI_RESET);
         } catch (Exception e) {
             System.err.println(ANSI_RED + "Error during startup: " + e.getMessage() + ANSI_RESET);
             e.printStackTrace();

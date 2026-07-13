@@ -1,5 +1,5 @@
 #
-# NanoLimbo configuration
+# Server configuration
 #
 
 # Server's host address and port. Set ip empty to use public address
@@ -27,14 +27,14 @@ dimension: THE_END
 # For 1.16.5 clients, the player list will be sent even if disabled, to avoid crash
 playerList:
   enable: false
-  username: 'NanoLimbo'
+  username: 'Steve'
 
 # Whether to display header and footer in player list
 # For 1.8+ clients
 headerAndFooter:
   enable: false
   header: '{"text": "&eWelcome!"}'
-  footer: '{"text": "&9NanoLimbo"}'
+  footer: '{"text": "&9MyServer"}'
 
 # Setup player's game mode
 # 0 - Survival

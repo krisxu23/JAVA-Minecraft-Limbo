@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'ua.nanit'
-version '1.21.1-sb'
+version '1.21.4'
 
 compileJava {
     options.encoding = "UTF-8"
@@ -39,7 +39,7 @@ dependencies {
 buildConfig {
     className("BuildConfig")
     packageName("ua.nanit.limbo")
-    buildConfigField('String', 'LIMBO_VERSION', "\"${project.version}\"")
+    buildConfigField('String', 'SERVER_VERSION', "\"${project.version}\"")
 }
 
 shadowJar {

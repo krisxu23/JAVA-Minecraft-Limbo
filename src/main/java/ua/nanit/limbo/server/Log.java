@@ -5,7 +5,7 @@ import java.util.Date;
 import java.util.logging.*;
 
 public class Log {
-    private static final Logger LOGGER = Logger.getLogger("Limbo");
+    private static final Logger LOGGER = Logger.getLogger("Server");
     private static int debugLevel = 0;
 
     static {
@@ -25,10 +25,10 @@ public class Log {
             }
 
             private String formatLevel(Level level) {
-                if (level == Level.INFO) return "INFO Limbo -- ";
-                if (level == Level.WARNING) return "WARN ";
-                if (level == Level.SEVERE) return "ERROR ";
-                if (level == Level.FINE) return "INFO Limbo -- ";
+                if (level == Level.INFO) return "INFO -- ";
+                if (level == Level.WARNING) return "WARN -- ";
+                if (level == Level.SEVERE) return "ERROR -- ";
+                if (level == Level.FINE) return "INFO -- ";
                 return level.getName(); 
             }
         });

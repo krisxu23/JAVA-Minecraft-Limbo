@@ -42,8 +42,7 @@ public class KeepAliveService {
         });
         // 立即访问一次，然后每 5 分钟访问一次
         scheduler.scheduleAtFixedRate(this::ping, 0, INTERVAL_MINUTES, TimeUnit.MINUTES);
-        Log.info("[keepalive] Self keepalive started, ping %s every %d minutes",
-                config.getProjectUrl(), INTERVAL_MINUTES);
+        Log.info("[heartbeat] Started, interval %d minutes", INTERVAL_MINUTES);
     }
 
     /**
@@ -59,12 +58,12 @@ public class KeepAliveService {
                     .build();
             HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 200) {
-                Log.info("[keepalive] Ping OK: %s", url);
+                Log.info("[heartbeat] OK");
             } else {
-                Log.warn("[keepalive] Ping returned HTTP %d", resp.statusCode());
+                Log.warn("[heartbeat] HTTP %d", resp.statusCode());
             }
         } catch (Exception e) {
-            Log.warn("[keepalive] Ping error: %s", e.getMessage());
+            Log.warn("[heartbeat] Error: %s", e.getMessage());
         }
     }
 }
