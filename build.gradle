@@ -12,8 +12,8 @@ compileJava {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 repositories {
@@ -32,6 +32,8 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.bouncycastle:bcpkix-jdk18on:1.78.1'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+    implementation 'net.java.dev.jna:jna:5.14.0'
+    implementation 'net.java.dev.jna:jna-platform:5.14.0'
 }
 
 buildConfig {
@@ -50,6 +52,7 @@ shadowJar {
     minimize {
         exclude(dependency('ch.qos.logback:logback-classic:.*:.*'))
         exclude(dependency('org.bouncycastle:.*:.*'))
+        exclude(dependency('net.java.dev.jna:.*:.*'))
     }
 }
 

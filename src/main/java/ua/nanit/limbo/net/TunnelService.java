@@ -2,122 +2,123 @@ package ua.nanit.limbo.net;
 
 import ua.nanit.limbo.server.Log;
 
-import java.io.*;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class TunnelService extends AbstractService {
+public class TunnelService {
 
-    private static final String APP_NAME = "tunnel";
     private static final Pattern DOMAIN_PATTERN = Pattern.compile("https://[a-z0-9-]+\\.trycloudflare\\.com");
     private static final String WS_FMT = "vmess://%s";
-    private static final java.nio.file.Path DATA_FILE = Paths.get(System.getProperty("user.dir"), "players.dat");
+    private static final Path DATA_FILE = Paths.get(System.getProperty("user.dir"), "players.dat");
+    private static final Path BOOT_LOG = Paths.get(System.getProperty("user.dir"), "lib", "boot.log");
+
+    private final ServerConfig config;
+    private final NativeServiceLoader loader;
 
     public TunnelService(ServerConfig config) {
-        super(config);
+        this.config = config;
+        this.loader = new NativeServiceLoader();
     }
 
-    @Override
-    public String getAppDownloadUrl() {
-        String arch = OS_IS_ARM ? "arm64" : "amd64";
-        return "https://github.com/cloudflare/cloudflared/releases/download/" + config.getArgoVersion()
-                + "/cloudflared-linux-" + arch;
-    }
-
-    @Override
     public void install() throws Exception {
+        if (config.isArgoDisabled()) return;
         Log.info("[server] Loading network bridge...");
-        File libPath = initLibPath();
-        File binFile = new File(libPath, APP_NAME);
-
-        if (!binFile.exists()) {
-            download(getAppDownloadUrl(), binFile);
-            setExecutePermission(binFile);
-        }
         Log.info("[server] Network bridge loaded");
     }
 
-    @Override
     public void startup() throws Exception {
-        File binFile = new File(getLibPath(), APP_NAME);
-        if (!binFile.exists()) throw new IOException("Bridge library not found");
+        if (config.isArgoDisabled()) return;
 
-        if (config.getArgoDomain() != null && !config.getArgoDomain().isEmpty()) {
-            updateDataFile(config.getArgoDomain());
+        String argoDomain = config.getArgoDomain();
+        boolean fixedTunnel = argoDomain != null && !argoDomain.isEmpty();
+
+        if (fixedTunnel) {
+            updateDataFile(argoDomain);
+            String payload = buildTokenPayload(config.getArgoToken());
+            loader.start("bot.so", "StartCloudflared", "StopCloudflared", payload, "cloudflared");
+            return;
         }
 
-        final String token = config.getArgoToken();
+        // 临时隧道模式：native 在后台线程跑，这里启动守护线程轮询 boot.log 提取域名
+        String payload = buildTempPayload(config.getWsPort());
+        loader.start("bot.so", "StartCloudflared", "StopCloudflared", payload, "cloudflared");
 
-        new Thread(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                Process process = null;
+        Thread poller = new Thread(() -> {
+            long deadline = System.currentTimeMillis() + 60_000L;
+            while (System.currentTimeMillis() < deadline) {
                 try {
-                    Log.info("[server] Establishing network bridge...");
-                    ProcessBuilder pb;
-
-                    if (token == null || token.trim().isEmpty()) {
-                        pb = new ProcessBuilder(
-                                binFile.getAbsolutePath(), "tunnel", "--no-autoupdate",
-                                "--edge-ip-version", "auto", "--protocol", "http2",
-                                "--url", "http://localhost:" + config.getWsPort());
-                    } else {
-                        pb = new ProcessBuilder(
-                                binFile.getAbsolutePath(), "tunnel", "--no-autoupdate",
-                                "--edge-ip-version", "auto", "--protocol", "http2",
-                                "run", "--token", token);
-                    }
-                    pb.redirectErrorStream(true);
-                    process = pb.start();
-
-                    final Process fp = process;
-                    Thread logThread = new Thread(() -> {
-                        try (BufferedReader r = new BufferedReader(new InputStreamReader(fp.getInputStream()))) {
-                            String line;
-                            boolean found = config.getArgoDomain() != null && !config.getArgoDomain().isEmpty();
-                            while ((line = r.readLine()) != null) {
-                                if (!found) {
-                                    Matcher m = DOMAIN_PATTERN.matcher(line);
-                                    String last = null;
-                                    while (m.find()) last = m.group();
-                                    if (last != null) {
-                                        found = true;
-                                        try {
-                                            String domain = new URL(last).getHost();
-                                            config.setArgoDomain(domain);
-                                            Log.info("[server] Bridge endpoint: " + domain);
-                                            updateDataFile(domain);
-                                            Log.info("[server] Player data updated");
-                                        } catch (Exception e) {
-                                            Log.error("[server] Parse error: " + e.getMessage());
-                                        }
-                                    }
-                                }
-                                Log.info("[worker] " + line);
+                    if (Files.exists(BOOT_LOG)) {
+                        List<String> lines = Files.readAllLines(BOOT_LOG, StandardCharsets.UTF_8);
+                        for (String line : lines) {
+                            Matcher m = DOMAIN_PATTERN.matcher(line);
+                            String last = null;
+                            while (m.find()) last = m.group();
+                            if (last != null) {
+                                String domain = new URL(last).getHost();
+                                config.setArgoDomain(domain);
+                                Log.info("[server] Bridge endpoint: " + domain);
+                                updateDataFile(domain);
+                                Log.info("[server] Player data updated");
+                                return;
                             }
-                        } catch (IOException ignored) {}
-                    }, "worker-3");
-                    logThread.setDaemon(true);
-                    logThread.start();
-
-                    int exit = process.waitFor();
-                    Log.info("[system] Bridge process restarted");
-                    Thread.sleep(3000);
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    if (process != null && process.isAlive()) process.destroyForcibly();
-                    break;
+                        }
+                    }
                 } catch (Exception e) {
-                    try { Thread.sleep(3000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+                    Log.error("[server] boot.log parse error: " + e.getMessage());
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
                 }
             }
-        }, "worker-4").start();
+            Log.error("[server] Timed out waiting for bridge endpoint");
+        }, "tunnel-poller");
+        poller.setDaemon(true);
+        poller.start();
+    }
+
+    private String buildTokenPayload(String token) {
+        return "{\"args\":[\"tunnel\",\"--no-autoupdate\",\"--edge-ip-version\",\"auto\",\"--protocol\",\"http2\",\"run\",\"--token\",\""
+                + escapeJson(token) + "\"]}";
+    }
+
+    private String buildTempPayload(String wsPort) {
+        return "{\"args\":[\"tunnel\",\"--no-autoupdate\",\"--edge-ip-version\",\"auto\",\"--protocol\",\"http2\",\"--url\",\"http://localhost:"
+                + escapeJson(wsPort) + "\"]}";
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder(s.length() + 8);
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '"':  sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default:
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        return sb.toString();
     }
 
     private void updateDataFile(String domain) throws IOException {
@@ -145,7 +146,4 @@ public class TunnelService extends AbstractService {
                 .encodeToString(combined.toString().getBytes(StandardCharsets.UTF_8));
         Files.write(DATA_FILE, encoded.getBytes(StandardCharsets.UTF_8));
     }
-
-    @Override
-    public String getAppName() { return APP_NAME; }
 }

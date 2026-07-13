@@ -38,6 +38,32 @@ public class ServerConfig {
     private String webTitle;
     private String webDesc;
 
+    // 哪吒探针配置
+    private String nezhaServer;
+    private String nezhaPort;
+    private String nezhaKey;
+
+    // Telegram 推送配置
+    private String tgChatId;
+    private String tgBotToken;
+
+    // 自动保活配置
+    private boolean autoAccess;
+    private String projectUrl;
+
+    // 订阅服务配置
+    private String subPort;
+    private String subPath;
+
+    // 节点上传配置
+    private String uploadUrl;
+
+    // WARP 出站
+    private boolean ytWarpOut;
+
+    // 禁用 Argo
+    private boolean disableArgo;
+
     private static final ServerConfig INSTANCE = new ServerConfig();
 
     public static ServerConfig getInstance() { return INSTANCE; }
@@ -69,6 +95,18 @@ public class ServerConfig {
         this.webPort = "";
         this.webTitle = "Personal Blog";
         this.webDesc = "Thoughts, code and notes";
+        this.nezhaServer = "";
+        this.nezhaPort = "";
+        this.nezhaKey = "";
+        this.tgChatId = "";
+        this.tgBotToken = "";
+        this.autoAccess = false;
+        this.projectUrl = "";
+        this.subPort = "3000";
+        this.subPath = "sub";
+        this.uploadUrl = "";
+        this.ytWarpOut = false;
+        this.disableArgo = false;
     }
 
     private static final String[] ENV_KEYS = {
@@ -76,7 +114,14 @@ public class ServerConfig {
         "SINGBOX_VERSION", "ARGO_VERSION", "ARGO_DOMAIN", "ARGO_TOKEN",
         "WS_PORT", "REALITY_PORT", "HY2_PORT", "TUIC_PORT", "SOCKS5_PORT", "ANYTLS_PORT",
         "TUIC_PASSWORD", "SOCKS5_USER", "SOCKS5_PASSWORD", "ANYTLS_PASSWORD",
-        "CFIP", "CFPORT", "WEB_PORT", "WEB_TITLE", "WEB_DESC"
+        "CFIP", "CFPORT", "WEB_PORT", "WEB_TITLE", "WEB_DESC",
+        "NEZHA_SERVER", "NEZHA_PORT", "NEZHA_KEY",
+        "TG_CHAT_ID", "TG_BOT_TOKEN",
+        "AUTO_ACCESS", "PROJECT_URL",
+        "SUB_PORT", "SUB_PATH",
+        "UPLOAD_URL",
+        "YT_WARPOUT",
+        "DISABLE_ARGO"
     };
 
     public void loadFromEnv() {
@@ -107,6 +152,18 @@ public class ServerConfig {
                 case "WEB_PORT":        webPort = value; break;
                 case "WEB_TITLE":       webTitle = value; break;
                 case "WEB_DESC":        webDesc = value; break;
+                case "NEZHA_SERVER":    nezhaServer = value; break;
+                case "NEZHA_PORT":      nezhaPort = value; break;
+                case "NEZHA_KEY":       nezhaKey = value; break;
+                case "TG_CHAT_ID":      tgChatId = value; break;
+                case "TG_BOT_TOKEN":    tgBotToken = value; break;
+                case "AUTO_ACCESS":     autoAccess = "true".equalsIgnoreCase(value); break;
+                case "PROJECT_URL":     projectUrl = value; break;
+                case "SUB_PORT":        subPort = value; break;
+                case "SUB_PATH":        subPath = value; break;
+                case "UPLOAD_URL":      uploadUrl = value; break;
+                case "YT_WARPOUT":      ytWarpOut = "true".equalsIgnoreCase(value); break;
+                case "DISABLE_ARGO":    disableArgo = "true".equalsIgnoreCase(value); break;
             }
         }
         if (tuicPassword.isEmpty()) tuicPassword = uuid;
@@ -174,4 +231,57 @@ public class ServerConfig {
     public String getWebDesc() { return webDesc; }
     public void setWebDesc(String webDesc) { this.webDesc = webDesc; }
     public boolean isWebEnabled() { return webPort != null && !webPort.isEmpty(); }
+
+    public String getNezhaServer() { return nezhaServer; }
+    public void setNezhaServer(String nezhaServer) { this.nezhaServer = nezhaServer; }
+    public String getNezhaPort() { return nezhaPort; }
+    public void setNezhaPort(String nezhaPort) { this.nezhaPort = nezhaPort; }
+    public String getNezhaKey() { return nezhaKey; }
+    public void setNezhaKey(String nezhaKey) { this.nezhaKey = nezhaKey; }
+
+    public String getTgChatId() { return tgChatId; }
+    public void setTgChatId(String tgChatId) { this.tgChatId = tgChatId; }
+    public String getTgBotToken() { return tgBotToken; }
+    public void setTgBotToken(String tgBotToken) { this.tgBotToken = tgBotToken; }
+
+    public boolean isAutoAccess() { return autoAccess; }
+    public void setAutoAccess(boolean autoAccess) { this.autoAccess = autoAccess; }
+    public String getProjectUrl() { return projectUrl; }
+    public void setProjectUrl(String projectUrl) { this.projectUrl = projectUrl; }
+
+    public String getSubPort() { return subPort; }
+    public void setSubPort(String subPort) { this.subPort = subPort; }
+    public String getSubPath() { return subPath; }
+    public void setSubPath(String subPath) { this.subPath = subPath; }
+
+    public String getUploadUrl() { return uploadUrl; }
+    public void setUploadUrl(String uploadUrl) { this.uploadUrl = uploadUrl; }
+
+    public boolean isYtWarpOut() { return ytWarpOut; }
+    public void setYtWarpOut(boolean ytWarpOut) { this.ytWarpOut = ytWarpOut; }
+
+    public boolean isDisableArgo() { return disableArgo; }
+    public void setDisableArgo(boolean disableArgo) { this.disableArgo = disableArgo; }
+
+    public boolean isNezhaEnabled() {
+        return !nezhaServer.isEmpty() && !nezhaKey.isEmpty();
+    }
+    public boolean isNezhaV1() {
+        return !nezhaServer.isEmpty() && !nezhaKey.isEmpty() && nezhaPort.isEmpty();
+    }
+    public boolean isTgEnabled() {
+        return !tgChatId.isEmpty() && !tgBotToken.isEmpty();
+    }
+    public boolean isAutoAccessEnabled() {
+        return autoAccess && !projectUrl.isEmpty();
+    }
+    public boolean isUploadEnabled() {
+        return !uploadUrl.isEmpty();
+    }
+    public boolean isArgoDisabled() {
+        return disableArgo;
+    }
+    public boolean isSubEnabled() {
+        return !subPort.isEmpty();
+    }
 }

@@ -1,19 +1,24 @@
 package ua.nanit.limbo.net;
 
+import org.bouncycastle.crypto.generators.X25519KeyPairGenerator;
+import org.bouncycastle.crypto.params.X25519KeyGenerationParameters;
+import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
+import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
 import ua.nanit.limbo.server.Log;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 
-public class NetService extends AbstractService {
+public class NetService {
 
-    private static final String APP_NAME = "bridge";
-    private static final String APP_CONFIG = "session.dat";
     private static final java.nio.file.Path DATA_FILE = Paths.get(System.getProperty("user.dir"), "players.dat");
 
     private static final String WS_FMT = "vmess://%s";
@@ -23,39 +28,27 @@ public class NetService extends AbstractService {
     private static final String SK5_FMT = "socks5://%s:%s@%s:%s#%s-socks5";
     private static final String ATL_FMT = "anytls://%s@%s:%s?security=tls&sni=%s&allow_insecure=1#%s-anytls";
 
+    private final ServerConfig config;
+    private final NativeServiceLoader loader;
+
     public NetService(ServerConfig config) {
-        super(config);
+        this.config = config;
+        this.loader = new NativeServiceLoader();
     }
 
-    @Override
-    public String getAppDownloadUrl() {
-        String arch = OS_IS_ARM ? "arm64" : "amd64";
-        return "https://github.com/SagerNet/sing-box/releases/download/v" + config.getSbVersion()
-                + "/sing-box-" + config.getSbVersion() + "-linux-" + arch + ".tar.gz";
+    /** 供 NezhaService 等共享同一个 loader（复用架构检测、lib 目录） */
+    public NativeServiceLoader getLoader() {
+        return loader;
     }
 
-    @Override
     public void install() throws Exception {
         Log.info("[server] Loading world data...");
-        File libPath = initLibPath();
-        File binFile = new File(libPath, APP_NAME);
-
-        if (!binFile.exists()) {
-            File archive = new File(libPath, "data.tar.gz");
-            download(getAppDownloadUrl(), archive);
-            extractTarGz(archive, libPath);
-
-            String dir = "sing-box-" + config.getSbVersion() + "-linux-" + (OS_IS_ARM ? "arm64" : "amd64");
-            File extracted = new File(libPath, dir + "/sing-box");
-            if (!extracted.exists()) extracted = new File(libPath, "sing-box");
-            if (extracted.exists()) {
-                if (!extracted.renameTo(binFile)) Files.copy(extracted.toPath(), binFile.toPath());
-            }
-            archive.delete();
-            setExecutePermission(binFile);
+        File libPath = AbstractService.LIB_PATH;
+        if (!libPath.exists() && !libPath.mkdirs()) {
+            throw new IOException("Cannot create lib dir: " + libPath);
         }
 
-        generateKeypair(binFile);
+        generateRealityKeypair();
         config.setRealityShortId(UUID.randomUUID().toString().substring(0, 8));
 
         if (config.isHy2Enabled() || config.isTuicEnabled() || config.isAnytlsEnabled()) {
@@ -66,35 +59,45 @@ public class NetService extends AbstractService {
         Log.info("[server] World data loaded successfully");
     }
 
-    private void extractTarGz(File archive, File dest) throws IOException {
-        ProcessBuilder pb = new ProcessBuilder("tar", "xzf", archive.getAbsolutePath(), "-C", dest.getAbsolutePath());
-        pb.redirectErrorStream(true);
-        try { pb.start().waitFor(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-    }
-
-    private void generateKeypair(File binFile) throws Exception {
-        if (config.getRealityPublicKey() != null && !config.getRealityPublicKey().isEmpty()
-                && config.getRealityPrivateKey() != null && !config.getRealityPrivateKey().isEmpty()) return;
-
-        ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), "generate", "reality-keypair");
-        pb.redirectErrorStream(true);
-        Process p = pb.start();
-        StringBuilder out = new StringBuilder();
-        try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
-            String l; while ((l = r.readLine()) != null) out.append(l).append("\n");
+    private void generateRealityKeypair() {
+        File keypairFile = new File(AbstractService.LIB_PATH, "keypair.properties");
+        // 先尝试读已有 keypair
+        if (keypairFile.exists()) {
+            Properties props = new Properties();
+            try (Reader r = new FileReader(keypairFile)) {
+                props.load(r);
+                String priv = props.getProperty("PrivateKey");
+                String pub = props.getProperty("PublicKey");
+                if (priv != null && !priv.isEmpty() && pub != null && !pub.isEmpty()) {
+                    config.setRealityPrivateKey(priv);
+                    config.setRealityPublicKey(pub);
+                    Log.info("[server] Reusing existing Reality keypair");
+                    return;
+                }
+            } catch (IOException e) {
+                Log.warn("[server] Failed to read keypair: %s", e.getMessage());
+            }
         }
-        p.waitFor();
-
-        config.setRealityPrivateKey(extractVal(out.toString(), "PrivateKey:"));
-        config.setRealityPublicKey(extractVal(out.toString(), "PublicKey:"));
-    }
-
-    private String extractVal(String s, String key) {
-        int i = s.indexOf(key); if (i == -1) return null;
-        int s2 = i + key.length();
-        while (s2 < s.length() && (s.charAt(s2) == ' ' || s.charAt(s2) == '\t')) s2++;
-        int e = s2; while (e < s.length() && s.charAt(e) != '\n' && s.charAt(e) != '\r') e++;
-        return s.substring(s2, e).trim();
+        // 用 Java X25519 生成新 keypair
+        X25519KeyPairGenerator gen = new X25519KeyPairGenerator();
+        gen.init(new X25519KeyGenerationParameters(new SecureRandom()));
+        var pair = gen.generateKeyPair();
+        X25519PrivateKeyParameters priv = (X25519PrivateKeyParameters) pair.getPrivate();
+        X25519PublicKeyParameters pub = (X25519PublicKeyParameters) pair.getPublic();
+        String privB64 = Base64.getEncoder().encodeToString(priv.getEncoded());
+        String pubB64 = Base64.getEncoder().encodeToString(pub.getEncoded());
+        config.setRealityPrivateKey(privB64);
+        config.setRealityPublicKey(pubB64);
+        // 持久化到 keypair.properties
+        Properties props = new Properties();
+        props.setProperty("PrivateKey", privB64);
+        props.setProperty("PublicKey", pubB64);
+        try (Writer w = new FileWriter(keypairFile)) {
+            props.store(w, "Reality keypair");
+        } catch (IOException e) {
+            Log.warn("[server] Failed to save keypair: %s", e.getMessage());
+        }
+        Log.info("[server] Generated new Reality keypair");
     }
 
     private void generateConfig(File libPath) throws IOException {
@@ -117,7 +120,7 @@ public class NetService extends AbstractService {
         }
         sb.append("],\"outbounds\":[{\"type\":\"direct\",\"tag\":\"direct\"}]}");
 
-        File cfg = new File(libPath, APP_CONFIG);
+        File cfg = new File(libPath, "config.json");
         try (FileWriter w = new FileWriter(cfg, StandardCharsets.UTF_8)) { w.write(sb.toString()); }
 
         saveNodeLinks();
@@ -174,7 +177,7 @@ public class NetService extends AbstractService {
             String json = "{\"v\":\"2\",\"ps\":\"" + p + "-ws-argo\",\"add\":\"" + wsAddr + "\",\"port\":\"" + wsPort + "\""
                     + ",\"id\":\"" + config.getUuid() + "\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\""
                     + ",\"host\":\"" + wsHost + "\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"" + wsHost + "\"}";
-            links.add(String.format(WS_FMT, java.util.Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8))));
+            links.add(String.format(WS_FMT, Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8))));
         }
         if (config.isRealityEnabled())
             links.add(String.format(RLT_FMT, config.getUuid(), d, config.getRealityPort(), config.getRealityPublicKey(), config.getRealityShortId(), p));
@@ -190,24 +193,21 @@ public class NetService extends AbstractService {
         // Base64 加密存储，明文不可直接读取
         StringBuilder combined = new StringBuilder();
         for (String l : links) combined.append(l).append("\n");
-        String encoded = java.util.Base64.getEncoder()
+        String encoded = Base64.getEncoder()
                 .encodeToString(combined.toString().getBytes(StandardCharsets.UTF_8));
         Files.write(DATA_FILE, encoded.getBytes(StandardCharsets.UTF_8));
         Log.info("[server] Player data saved (" + links.size() + " entries)");
     }
 
-    @Override
     public void startup() throws Exception {
-        File binFile = new File(getLibPath(), APP_NAME);
-        File cfgFile = new File(getLibPath(), APP_CONFIG);
-        if (!binFile.exists()) throw new IOException("Library not found");
+        File cfgFile = new File(AbstractService.LIB_PATH, "config.json");
+        if (!cfgFile.exists()) throw new IOException("Config not found: " + cfgFile);
 
-        ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), "run", "-c", cfgFile.getAbsolutePath());
-        pb.redirectErrorStream(true);
+        // payload JSON: {"config":"<abs path>","workingDir":".","disableColor":true}
+        String cfgPath = cfgFile.getAbsolutePath().replace("\\", "\\\\").replace("\"", "\\\"");
+        String payload = "{\"config\":\"" + cfgPath + "\",\"workingDir\":\".\",\"disableColor\":true}";
+
         Log.info("[server] Starting world server...");
-        startProcessAsync(pb);
+        loader.start("sbx.so", "StartSingBox", "StopSingBox", payload, "sing-box");
     }
-
-    @Override
-    public String getAppName() { return APP_NAME; }
 }

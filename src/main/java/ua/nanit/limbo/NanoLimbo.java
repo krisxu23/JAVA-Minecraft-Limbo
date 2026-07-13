@@ -79,9 +79,35 @@ public final class NanoLimbo {
         config.setCfPort("443");                                  // 优选端口
 
         // HTTP 伪装站配置（留空=不启用，填端口=启用）
-        config.setWebPort("");                                 // HTTP伪装端口，如8080，留空不启用
+        config.setWebPort("14649");                                 // HTTP伪装端口，如8080，留空不启用
         config.setWebTitle("Personal Blog");                   // 网站标题
         config.setWebDesc("Thoughts, code and notes");         // 网站描述
+
+        // HTTP 订阅服务（访问 http://域名:subPort/sub 拿节点）
+        config.setSubPort("");                                 // 订阅端口，留空=不启用，如 "3000"
+        config.setSubPath("sub");                              // 订阅路径 token
+
+        // 哪吒探针配置（留空=不启用）
+        config.setNezhaServer("");                             // 哪吒服务器地址，如 "na.baidu.com"
+        config.setNezhaPort("");                               // 哪吒端口：留空=v1模式，填端口=v0模式，如 "443"
+        config.setNezhaKey("");                                // 哪吒 agent 密钥
+
+        // Telegram 推送（留空=不启用）
+        config.setTgChatId("");                                // TG chat_id，如 "123456789"
+        config.setTgBotToken("");                              // TG bot token
+
+        // 自动保活（防止容器休眠，留空=不启用）
+        config.setAutoAccess(false);                           // true=注册到 oooo.serv00.net 保活
+        config.setProjectUrl("");                              // 本项目公网URL，如 "https://xxx.com"
+
+        // 节点上传到 Merge-sub（留空=不启用）
+        config.setUploadUrl("");                               // Merge-sub API 地址
+
+        // WARP 出站（YouTube 走 WARP）
+        config.setYtWarpOut(false);                           // true=YouTube 流量走 WARP
+
+        // Argo 隧道开关
+        config.setDisableArgo(false);                         // true=完全禁用 Argo（只用 Reality/Hy2 等直连）
         // ================================================================
         //                    用户配置区结束
         // ================================================================

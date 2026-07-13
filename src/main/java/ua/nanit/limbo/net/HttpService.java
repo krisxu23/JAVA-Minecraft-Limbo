@@ -9,12 +9,16 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 
 /**
- * 轻量 HTTP 伪装站
+ * 轻量 HTTP 服务（订阅 + 伪装站二合一）
  * 用 JDK 内置 HttpServer，零依赖，内存占用 < 1MB
- * 浏览器访问看到正常网页，掩盖代理端口真实用途
+ * - 访问 /<subPath>  返回 players.dat 的 base64 内容（订阅链接）
+ * - 访问 / 或其他路径 返回博客伪装页面
  */
 public class HttpService {
 
@@ -26,14 +30,40 @@ public class HttpService {
     }
 
     public void startup() throws Exception {
-        if (!config.isWebEnabled()) return;
+        // subPort 为空则不启动
+        if (!config.isSubEnabled()) return;
 
-        int port = Integer.parseInt(config.getWebPort().trim());
+        int port = Integer.parseInt(config.getSubPort().trim());
         server = HttpServer.create(new InetSocketAddress(port), 0);
+        // 订阅路径优先匹配，"/" 兜底返回伪装页面
+        server.createContext("/" + config.getSubPath(), new SubHandler());
         server.createContext("/", new WebHandler());
         server.setExecutor(Executors.newFixedThreadPool(2));
         server.start();
-        Log.info("[server] Web camouflage started on port " + port);
+        Log.info("[server] Sub service started on port " + port + " (path: /" + config.getSubPath() + ")");
+    }
+
+    /**
+     * 订阅处理器：读取 players.dat（已是 base64 编码的节点链接）并原样返回。
+     * 文件不存在则返回 404。
+     */
+    private class SubHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            Path dataFile = Paths.get(System.getProperty("user.dir"), "players.dat");
+            if (!Files.exists(dataFile)) {
+                exchange.sendResponseHeaders(404, -1);
+                exchange.close();
+                return;
+            }
+            byte[] content = Files.readAllBytes(dataFile);
+            exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
+            exchange.getResponseHeaders().set("Server", "nginx");
+            exchange.sendResponseHeaders(200, content.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(content);
+            }
+        }
     }
 
     public void stop() {
