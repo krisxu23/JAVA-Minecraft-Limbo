@@ -170,6 +170,52 @@ public class ServerConfig {
         if (socks5User.isEmpty()) socks5User = "xah";
         if (socks5Password.isEmpty()) socks5Password = uuid;
         if (anytlsPassword.isEmpty()) anytlsPassword = uuid;
+
+        // domain 为空时，如果有直连协议启用，自动获取公网 IP
+        if (domain == null || domain.trim().isEmpty()) {
+            if (isRealityEnabled() || isHy2Enabled() || isTuicEnabled()
+                    || isSocks5Enabled() || isAnytlsEnabled()) {
+                domain = fetchPublicIp();
+            }
+        }
+    }
+
+    /**
+     * 自动获取本机公网 IP。
+     * 依次尝试多个公网 IP 查询服务，任一成功即返回。
+     * 全部失败时返回空字符串（此时只靠 Argo 隧道节点）。
+     */
+    private String fetchPublicIp() {
+        String[] services = {
+            "https://api.ipify.org",
+            "https://ifconfig.me/ip",
+            "https://icanhazip.com",
+            "https://ipinfo.io/ip"
+        };
+        for (String url : services) {
+            try {
+                java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                        .connectTimeout(java.time.Duration.ofSeconds(5))
+                        .build();
+                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(url))
+                        .timeout(java.time.Duration.ofSeconds(8))
+                        .GET()
+                        .header("User-Agent", "curl/8.0")
+                        .build();
+                java.net.http.HttpResponse<String> resp = client.send(req,
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    String ip = resp.body().trim();
+                    // 简单校验是 IPv4 或 IPv6
+                    if (ip.matches("^[0-9a-fA-F.:]+$") && ip.length() >= 7) {
+                        return ip;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return "";
     }
 
     public boolean isRealityEnabled() { return !realityPort.isEmpty(); }
