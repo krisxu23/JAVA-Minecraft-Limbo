@@ -173,6 +173,10 @@ public final class LimboConfig {
         return maxPlayers;
     }
 
+    public void setMaxPlayers(int maxPlayers) {
+        this.maxPlayers = maxPlayers;
+    }
+
     public PingData getPingData() {
         return pingData;
     }

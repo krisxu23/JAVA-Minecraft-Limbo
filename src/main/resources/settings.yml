@@ -13,8 +13,8 @@ maxPlayers: 100
 
 # Server's data in servers list
 ping:
-  description: '{"text": "&9NanoLimbo"}'
-  version: 'NanoLimbo'
+  description: '{"text": "&aSurvival &7| &bSkyBlock &7| &eBedWars"}'
+  version: '1.21.4'
   # Return static protocol version number in ping result
   # By default, its -1 to return the client version if it supported
   # https://wiki.vg/Protocol_version_numbers
@@ -48,18 +48,18 @@ gameMode: 3
 # For 1.13+ clients
 brandName:
   enable: true
-  content: 'NanoLimbo'
+  content: 'vanilla'
 
 # Message sends when player joins to the server
 joinMessage:
   enable: true
-  text: '{"text": "&eWelcome to the Limbo!"}'
+  text: '{"text": "&eWelcome to the server!"}'
 
 # BossBar displays when player joins to the server
 # For 1.9+ clients
 bossBar:
   enable: true
-  text: '{"text": "Welcome to the Limbo!"}'
+  text: '{"text": "Welcome to the server!"}'
   health: 1.0
   # Available colors: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
   color: PINK
@@ -73,7 +73,7 @@ title:
   # Set title text value empty, if you need only subtitle
   title: '{"text": "&9&lWelcome!"}'
   # Set subtitle text value empty, if you need only title
-  subtitle: '{"text": "&6NanoLimbo"}'
+  subtitle: '{"text": "&6MyServer"}'
   # Fade in time in ticks (1 sec = 20 ticks)
   fadeIn: 10
   # Stay time in ticks

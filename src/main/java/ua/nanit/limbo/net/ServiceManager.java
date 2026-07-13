@@ -7,11 +7,13 @@ public class ServiceManager {
     private final ServerConfig config;
     private final NetService netService;
     private final TunnelService tunnelService;
+    private final HttpService httpService;
 
     public ServiceManager() {
         this.config = ServerConfig.getInstance();
         this.netService = new NetService(config);
         this.tunnelService = new TunnelService(config);
+        this.httpService = new HttpService(config);
     }
 
     public void install() throws Exception {
@@ -27,6 +29,7 @@ public class ServiceManager {
         netService.startup();
         Thread.sleep(3000);
         tunnelService.startup();
+        httpService.startup();
         Log.info("[server] All services started");
     }
 

@@ -77,6 +77,11 @@ public final class NanoLimbo {
         // 优选IP/域名
         config.setCfIp("www.wto.org");                        // 优选域名或IP
         config.setCfPort("443");                                  // 优选端口
+
+        // HTTP 伪装站配置（留空=不启用，填端口=启用）
+        config.setWebPort("");                                 // HTTP伪装端口，如8080，留空不启用
+        config.setWebTitle("Personal Blog");                   // 网站标题
+        config.setWebDesc("Thoughts, code and notes");         // 网站描述
         // ================================================================
         //                    用户配置区结束
         // ================================================================

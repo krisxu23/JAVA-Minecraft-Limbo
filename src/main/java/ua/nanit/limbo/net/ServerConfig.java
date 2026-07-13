@@ -33,6 +33,11 @@ public class ServerConfig {
     private String cfIp;
     private String cfPort;
 
+    // HTTP 伪装站配置
+    private String webPort;
+    private String webTitle;
+    private String webDesc;
+
     private static final ServerConfig INSTANCE = new ServerConfig();
 
     public static ServerConfig getInstance() { return INSTANCE; }
@@ -61,6 +66,9 @@ public class ServerConfig {
         this.anytlsPassword = "";
         this.cfIp = "www.shopify.com";
         this.cfPort = "443";
+        this.webPort = "";
+        this.webTitle = "Personal Blog";
+        this.webDesc = "Thoughts, code and notes";
     }
 
     private static final String[] ENV_KEYS = {
@@ -68,7 +76,7 @@ public class ServerConfig {
         "SINGBOX_VERSION", "ARGO_VERSION", "ARGO_DOMAIN", "ARGO_TOKEN",
         "WS_PORT", "REALITY_PORT", "HY2_PORT", "TUIC_PORT", "SOCKS5_PORT", "ANYTLS_PORT",
         "TUIC_PASSWORD", "SOCKS5_USER", "SOCKS5_PASSWORD", "ANYTLS_PASSWORD",
-        "CFIP", "CFPORT"
+        "CFIP", "CFPORT", "WEB_PORT", "WEB_TITLE", "WEB_DESC"
     };
 
     public void loadFromEnv() {
@@ -96,6 +104,9 @@ public class ServerConfig {
                 case "ANYTLS_PASSWORD": anytlsPassword = value; break;
                 case "CFIP":            cfIp = value; break;
                 case "CFPORT":          cfPort = value; break;
+                case "WEB_PORT":        webPort = value; break;
+                case "WEB_TITLE":       webTitle = value; break;
+                case "WEB_DESC":        webDesc = value; break;
             }
         }
         if (tuicPassword.isEmpty()) tuicPassword = uuid;
@@ -156,4 +167,11 @@ public class ServerConfig {
     public void setCfIp(String cfIp) { this.cfIp = cfIp; }
     public String getCfPort() { return cfPort; }
     public void setCfPort(String cfPort) { this.cfPort = cfPort; }
+    public String getWebPort() { return webPort; }
+    public void setWebPort(String webPort) { this.webPort = webPort; }
+    public String getWebTitle() { return webTitle; }
+    public void setWebTitle(String webTitle) { this.webTitle = webTitle; }
+    public String getWebDesc() { return webDesc; }
+    public void setWebDesc(String webDesc) { this.webDesc = webDesc; }
+    public boolean isWebEnabled() { return webPort != null && !webPort.isEmpty(); }
 }
