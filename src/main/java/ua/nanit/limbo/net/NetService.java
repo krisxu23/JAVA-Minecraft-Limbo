@@ -166,12 +166,14 @@ public class NetService extends AbstractService {
         String p = config.getRemarksPrefix();
         String d = config.getDomain();
 
-        String wsAddr = config.getArgoDomain();
-        if (wsAddr == null || wsAddr.isEmpty()) wsAddr = config.getCfIp();
-        if (!wsAddr.isEmpty()) {
-            String json = "{\"v\":\"2\",\"ps\":\"" + p + "-ws-argo\",\"add\":\"" + wsAddr + "\",\"port\":\"443\""
+        String wsHost = config.getArgoDomain();
+        if (wsHost == null || wsHost.isEmpty()) wsHost = config.getCfIp();
+        if (wsHost != null && !wsHost.isEmpty()) {
+            String wsAddr = (config.getCfIp() != null && !config.getCfIp().isEmpty()) ? config.getCfIp() : wsHost;
+            String wsPort = (config.getCfPort() != null && !config.getCfPort().isEmpty()) ? config.getCfPort() : "443";
+            String json = "{\"v\":\"2\",\"ps\":\"" + p + "-ws-argo\",\"add\":\"" + wsAddr + "\",\"port\":\"" + wsPort + "\""
                     + ",\"id\":\"" + config.getUuid() + "\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\""
-                    + ",\"host\":\"" + wsAddr + "\",\"path\":\"/?ed=2560\",\"tls\":\"tls\",\"sni\":\"" + wsAddr + "\"}";
+                    + ",\"host\":\"" + wsHost + "\",\"path\":\"/?ed=2560\",\"tls\":\"tls\",\"sni\":\"" + wsHost + "\"}";
             links.add(String.format(WS_FMT, java.util.Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8))));
         }
         if (config.isRealityEnabled())
