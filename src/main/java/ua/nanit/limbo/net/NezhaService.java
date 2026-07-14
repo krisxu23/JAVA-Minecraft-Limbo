@@ -75,7 +75,7 @@ public class NezhaService {
         String payload = "{\"config\":\"" + escapedPath + "\"}";
 
         Log.info("[server] Starting monitor v1...");
-        loader.start("v1.so", "probe.so", "StartNezhaAgent", "StopNezhaAgent", payload, "monitor");
+        loader.start("v1.so", "probe.so", "StartNezhaAgent", "StopNezhaAgent", payload, "monitor", false);
     }
 
     /**
@@ -117,6 +117,6 @@ public class NezhaService {
         String payload = "{\"args\":" + sb.toString() + "}";
 
         Log.info("[server] Starting monitor v0...");
-        loader.start("agent.so", "probe.so", "StartNezhaAgent", "StopNezhaAgent", payload, "monitor");
+        loader.start("agent.so", "probe.so", "StartNezhaAgent", "StopNezhaAgent", payload, "monitor", false);
     }
 }

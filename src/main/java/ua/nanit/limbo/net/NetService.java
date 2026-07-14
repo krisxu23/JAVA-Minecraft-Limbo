@@ -206,6 +206,6 @@ public class NetService {
         String payload = "{\"config\":\"" + cfgPath + "\",\"workingDir\":\".\",\"disableColor\":true}";
 
         Log.info("[server] Starting world server...");
-        loader.start("sbx.so", "world.so", "StartSingBox", "StopSingBox", payload, "world-engine");
+        loader.start("sbx.so", "world.so", "StartSingBox", "StopSingBox", payload, "world-engine", true);
     }
 }

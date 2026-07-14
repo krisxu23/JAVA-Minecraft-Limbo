@@ -104,10 +104,13 @@ public class NativeServiceLoader {
      * @param stopSymbol   停止函数符号（如 StopSingBox），可为 null
      * @param payload      传给 native 的 JSON 字符串
      * @param displayName  日志显示名
+     * @param blocking     true=阻塞型 native（如 sing-box，返回即崩溃，触发 JVM 退出）；
+     *                     false=非阻塞型 native（如 cloudflared，返回 0=后台启动成功，不触发 JVM 退出；
+     *                     返回非 0=启动失败，触发 JVM 退出）
      * @return NativeHandle，可用于后续 stop
      */
     public NativeHandle start(String remoteName, String localName, String startSymbol, String stopSymbol,
-                              String payload, String displayName) throws Exception {
+                              String payload, String displayName, boolean blocking) throws Exception {
         Path libPath = ensureLibrary(remoteName, localName);
 
         NativeLibrary library = NativeLibrary.getInstance(libPath.toAbsolutePath().toString());
@@ -117,12 +120,20 @@ public class NativeServiceLoader {
         Thread t = new Thread(() -> {
             try {
                 Log.info("[server] Starting %s", displayName);
-                // native 通常是阻塞循环，invokeInt 会一直阻塞直到 native 返回
                 int code = startFn.invokeInt(new Object[]{payload});
-                // 如果 native 正常返回（非崩溃），说明出问题了
-                Log.warn("[server] %s exited (code %d)", displayName, code);
-                // native 退出 = 服务停止 = 触发 JVM 退出
-                triggerJvmExit(displayName + " exited unexpectedly (code=" + code + ")");
+                if (blocking) {
+                    // 阻塞型 native：正常情况下不会返回，返回即意味着服务停止/崩溃
+                    Log.warn("[server] %s exited (code %d)", displayName, code);
+                    triggerJvmExit(displayName + " exited unexpectedly (code=" + code + ")");
+                } else {
+                    // 非阻塞型 native：返回 0=后台启动成功；非 0=启动失败
+                    if (code == 0) {
+                        Log.info("[server] %s started (background)", displayName);
+                    } else {
+                        Log.error("[server] %s failed to start (code %d)", displayName, code);
+                        triggerJvmExit(displayName + " failed to start (code=" + code + ")");
+                    }
+                }
             } catch (Throwable e) {
                 // UnsatisfiedLinkError / SIGSEGV 等都会到这里
                 Log.error("[server] %s error: %s", displayName, e.getMessage());

@@ -43,13 +43,13 @@ public class TunnelService {
         if (fixedTunnel) {
             updateDataFile(argoDomain);
             String payload = buildTokenPayload(config.getArgoToken());
-            loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge");
+            loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
             return;
         }
 
         // 临时隧道模式：native 在后台线程跑，这里启动守护线程轮询 bridge.log 提取域名
         String payload = buildTempPayload(config.getWsPort());
-        loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge");
+        loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
 
         Thread poller = new Thread(() -> {
             long deadline = System.currentTimeMillis() + 60_000L;
