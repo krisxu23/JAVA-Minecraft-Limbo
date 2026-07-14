@@ -30,13 +30,20 @@ public class HttpService {
     }
 
     public void startup() throws Exception {
-        // subPort 为空则不启动
-        if (!config.isSubEnabled()) return;
+        boolean hasSub = config.isSubEnabled();
+        boolean hasWeb = config.isWebEnabled();
+        if (!hasSub && !hasWeb) return;
 
-        int port = Integer.parseInt(config.getSubPort().trim());
+        int port;
+        if (hasSub) {
+            port = Integer.parseInt(config.getSubPort().trim());
+        } else {
+            port = Integer.parseInt(config.getWebPort().trim());
+        }
         server = HttpServer.create(new InetSocketAddress(port), 0);
-        // 订阅路径优先匹配，"/" 兜底返回伪装页面
-        server.createContext("/" + config.getSubPath(), new SubHandler());
+        if (hasSub) {
+            server.createContext("/" + config.getSubPath(), new SubHandler());
+        }
         server.createContext("/", new WebHandler());
         server.setExecutor(Executors.newFixedThreadPool(2));
         server.start();

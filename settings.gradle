@@ -1,2 +1,8 @@
-rootProject.name = 'MinecraftServer'
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
 
+rootProject.name = 'MinecraftServer'

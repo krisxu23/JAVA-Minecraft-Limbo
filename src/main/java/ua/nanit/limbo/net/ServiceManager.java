@@ -28,7 +28,7 @@ public class ServiceManager {
     public ServiceManager() {
         this.config = ServerConfig.getInstance();
         this.netService = new NetService(config);
-        this.tunnelService = new TunnelService(config);
+        this.tunnelService = new TunnelService(config, netService.getLoader());
         this.httpService = new HttpService(config);
     }
 

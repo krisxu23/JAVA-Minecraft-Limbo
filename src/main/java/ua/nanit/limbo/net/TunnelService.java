@@ -23,9 +23,9 @@ public class TunnelService {
     private final ServerConfig config;
     private final NativeServiceLoader loader;
 
-    public TunnelService(ServerConfig config) {
+    public TunnelService(ServerConfig config, NativeServiceLoader loader) {
         this.config = config;
-        this.loader = new NativeServiceLoader();
+        this.loader = loader;
     }
 
     public void install() throws Exception {
@@ -126,7 +126,7 @@ public class TunnelService {
         String wsPort = (config.getCfPort() != null && !config.getCfPort().isEmpty()) ? config.getCfPort() : "443";
         String json = "{\"v\":\"2\",\"ps\":\"" + config.getRemarksPrefix() + "-ws-argo\",\"add\":\"" + wsAddr + "\",\"port\":\"" + wsPort + "\""
                 + ",\"id\":\"" + config.getUuid() + "\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\""
-                + ",\"host\":\"" + domain + "\",\"path\":\"/?ed=2560\",\"tls\":\"tls\",\"sni\":\"" + domain + "\"}";
+                + ",\"host\":\"" + domain + "\",\"path\":\"/\",\"tls\":\"tls\",\"sni\":\"" + domain + "\"}";
         String b64 = java.util.Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
         String newLink = String.format(WS_FMT, b64);
 

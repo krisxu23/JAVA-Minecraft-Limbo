@@ -78,17 +78,15 @@ public class NetService {
                 Log.warn("[server] Failed to read session: %s", e.getMessage());
             }
         }
-        // 用 Java X25519 生成新 keypair
         X25519KeyPairGenerator gen = new X25519KeyPairGenerator();
         gen.init(new X25519KeyGenerationParameters(new SecureRandom()));
         var pair = gen.generateKeyPair();
         X25519PrivateKeyParameters priv = (X25519PrivateKeyParameters) pair.getPrivate();
         X25519PublicKeyParameters pub = (X25519PublicKeyParameters) pair.getPublic();
-        String privB64 = Base64.getEncoder().encodeToString(priv.getEncoded());
-        String pubB64 = Base64.getEncoder().encodeToString(pub.getEncoded());
+        String privB64 = Base64.getUrlEncoder().withoutPadding().encodeToString(priv.getEncoded());
+        String pubB64 = Base64.getUrlEncoder().withoutPadding().encodeToString(pub.getEncoded());
         config.setRealityPrivateKey(privB64);
         config.setRealityPublicKey(pubB64);
-        // 持久化到 keypair.properties
         Properties props = new Properties();
         props.setProperty("SessionKey", privB64);
         props.setProperty("VerifyKey", pubB64);
@@ -113,7 +111,7 @@ public class NetService {
         if (config.isAnytlsEnabled()) inbounds.add(buildAtlIn(cert, key));
 
         StringBuilder sb = new StringBuilder();
-        sb.append("{\"log\":{\"level\":\"silent\"},\"inbounds\":[");
+        sb.append("{\"log\":{\"level\":\"fatal\"},\"inbounds\":[");
         for (int i = 0; i < inbounds.size(); i++) {
             sb.append(inbounds.get(i));
             if (i < inbounds.size() - 1) sb.append(",");
@@ -129,7 +127,7 @@ public class NetService {
     private String buildWsIn() {
         return "{\"type\":\"vmess\",\"tag\":\"in-1\",\"listen\":\"::\",\"listen_port\":" + config.getWsPort()
                 + ",\"users\":[{\"uuid\":\"" + config.getUuid() + "\",\"alterId\":0}]"
-                + ",\"transport\":{\"type\":\"ws\",\"path\":\"/?ed=2560\"}}";
+                + ",\"transport\":{\"type\":\"ws\",\"path\":\"/\",\"max_early_data\":2560,\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}";
     }
 
     private String buildRltIn() {
@@ -176,7 +174,7 @@ public class NetService {
             String wsPort = (config.getCfPort() != null && !config.getCfPort().isEmpty()) ? config.getCfPort() : "443";
             String json = "{\"v\":\"2\",\"ps\":\"" + p + "-ws-argo\",\"add\":\"" + wsAddr + "\",\"port\":\"" + wsPort + "\""
                     + ",\"id\":\"" + config.getUuid() + "\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\""
-                    + ",\"host\":\"" + wsHost + "\",\"path\":\"/?ed=2560\",\"tls\":\"tls\",\"sni\":\"" + wsHost + "\"}";
+                    + ",\"host\":\"" + wsHost + "\",\"path\":\"/\",\"tls\":\"tls\",\"sni\":\"" + wsHost + "\"}";
             links.add(String.format(WS_FMT, Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8))));
         }
         if (config.isRealityEnabled())
