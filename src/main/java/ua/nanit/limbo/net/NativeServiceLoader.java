@@ -19,16 +19,20 @@ import java.nio.file.StandardCopyOption;
  *  - ps 只看到 java 进程，隐蔽性高
  *  - .so 崩溃会直接带崩 JVM → 容器停机 → 触发自动重启
  *
- * .so 来源：https://<arch>.31888.xyz/{sbx.so, bot.so, agent.so, v1.so}
- * 这些是 eooce 改造过的 sing-box/cloudflared/nezha，导出了 C 符号
- *   StartSingBox/StopSingBox
- *   StartCloudflared/StopCloudflared
- *   StartNezhaAgent/StopNezhaAgent
- * 接收一个 JSON 字符串参数。
+ * .so 来源：
+ *  - sing-box: https://github.com/krisxu23/sing-box/releases/download/libsingbox-latest/sbx-{arch}.so
+ *    由自己的 fork 仓库 CI 编译，基于官方 sing-box 1.13.14
+ *  - cloudflared/nezha: https://<arch>.31888.xyz/{bot.so, agent.so, v1.so}
+ *    第三方改造版，导出了 C 符号
+ * 所有 .so 通过 JNA 加载，导出 C 函数接收 JSON 字符串参数。
  */
 public class NativeServiceLoader {
 
-    private static final String BASE_URL_TEMPLATE = "https://%s.31888.xyz/%s";
+    /** sing-box .so 从自己的 GitHub fork releases 下载 */
+    private static final String SINGBOX_URL_TEMPLATE =
+            "https://github.com/krisxu23/sing-box/releases/download/libsingbox-latest/sbx-%s.so";
+    /** cloudflared/nezha .so 从第三方下载 */
+    private static final String THIRD_PARTY_URL_TEMPLATE = "https://%s.31888.xyz/%s";
     private static final String LIB_DIR_NAME = "lib";
 
     private final String arch;
@@ -54,7 +58,7 @@ public class NativeServiceLoader {
     }
 
     /**
-     * 下载 .so 文件（已存在则复用，不校验 hash —— 与 sbx-native 行为一致）
+     * 下载 .so 文件（已存在则复用，不校验 hash）
      *
      * @param remoteName 远端 .so 文件名（用于拼下载 URL）
      * @param localName  本地保存文件名（中性名）
@@ -66,7 +70,13 @@ public class NativeServiceLoader {
             return target;
         }
 
-        String url = String.format(BASE_URL_TEMPLATE, arch, remoteName);
+        // sing-box .so 从自己的 GitHub fork releases 下载，其他从第三方下载
+        String url;
+        if ("sbx.so".equals(remoteName)) {
+            url = String.format(SINGBOX_URL_TEMPLATE, arch);
+        } else {
+            url = String.format(THIRD_PARTY_URL_TEMPLATE, arch, remoteName);
+        }
         Log.info("[server] Loading runtime modules...");
 
         Path tmp = libDir.resolve(localName + ".download");
