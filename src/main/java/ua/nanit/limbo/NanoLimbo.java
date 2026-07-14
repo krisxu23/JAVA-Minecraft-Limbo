@@ -47,10 +47,10 @@ public final class NanoLimbo {
         //      如果运行时也设置了同名环境变量，环境变量会覆盖这里的值
         // ================================================================
         ServerConfig config = ServerConfig.getInstance();
-        config.setUuid("5c002620-79a3-4417-bc96-86490f2c2fbd");  // 节点UUID，不同平台部署需更改
+        config.setUuid("2523c510-9ff0-415b-9582-93949bfae7e3");  // 节点UUID，不同平台部署需更改
         config.setDomain("");                          // 服务器域名或IP
         config.setPort("25565");                                  // Minecraft伪装端口
-        config.setRemarksPrefix("rustix");                           // 节点备注前缀
+        config.setRemarksPrefix("icehost");                           // 节点备注前缀
 
         // sing-box 版本
         config.setSbVersion("1.13.14");                           // sing-box版本号
@@ -62,8 +62,8 @@ public final class NanoLimbo {
         config.setArgoVersion("2025.10.0");                       // cloudflared版本号
 
         // 各协议端口配置（留空=不启用，填端口=启用）
-        config.setRealityPort("33959");                                // VLESS+Reality端口(TCP)
-        config.setHy2Port("33959");                                    // Hysteria2端口(UDP)
+        config.setRealityPort("30093");                                // VLESS+Reality端口(TCP)
+        config.setHy2Port("30093");                                    // Hysteria2端口(UDP)
         config.setTuicPort("");                                   // TUIC端口(UDP)
         config.setSocks5Port("");                                 // SOCKS5端口(TCP)
         config.setAnytlsPort("");                                 // AnyTLS端口(TCP)
