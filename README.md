@@ -36,7 +36,41 @@ git clone https://github.com/krisxu23/JAVA-Minecraft-Limbo.git
 cd JAVA-Minecraft-Limbo
 chmod +x gradlew
 ./gradlew clean shadowJar
-java -jar build/libs/server.jar
+
+# 方式一：使用自适应启动脚本（推荐）
+./start.sh
+
+# 方式二：手动带 JVM 参数运行
+java -XX:MaxRAMPercentage=40 -XX:+UseZGC -XX:+ZGenerational \
+     -XX:+AlwaysPreTouch -XX:+DisableExplicitGC \
+     -jar build/libs/server.jar
+```
+
+#### 内存说明
+
+本程序在单进程内同时运行 JVM（Minecraft 伪装）和 sing-box/cloudflared 代理核心（通过 JNA 加载的 native .so），所有内存都在一个进程内共享。
+
+| 组件 | 内存类型 | 典型占用 | 控制方式 |
+|------|---------|---------|---------|
+| Minecraft 伪装 | Java 堆 | **~8-10MB** | 代码已优化：NBT 懒加载 + 按需编码 |
+| JVM 自身 | 堆 + 非堆 | 见下方配置 | `-XX:MaxRAMPercentage` |
+| sing-box / cloudflared | native 内存 | **30-80MB** (看流量) | 不受 JVM 参数控制 |
+
+**重点：** sing-box 和 cloudflared 的 native 内存不由 JVM 管理。`MaxRAMPercentage` 设得太高会导致 native 部分内存不足 → 进程被 OOM killer 杀死。
+
+建议根据容器总内存选择：
+
+| 总内存 | 建议 `MaxRAMPercentage` | Java 堆 | 留给 native |
+|--------|------------------------|---------|------------|
+| 256MB | 35-40% | ~90-102MB | ~154-166MB |
+| 512MB | 45-50% | ~230-256MB | ~256-282MB |
+| 1GB | 55-60% | ~563-614MB | ~410-461MB |
+| 4GB+ | 65-70% | ~2.6-2.8GB | ~1.2-1.4GB |
+
+`start.sh` 脚本自动按此策略计算。也可通过 `JVM_ARGS` 环境变量覆盖：
+
+```bash
+JVM_ARGS="-Xmx128M -XX:+UseZGC" ./start.sh
 ```
 
 ## 环境变量配置

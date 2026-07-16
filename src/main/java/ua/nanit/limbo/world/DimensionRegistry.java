@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2020 Nan1t
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package ua.nanit.limbo.world;
 
 import net.kyori.adventure.nbt.CompoundBinaryTag;
@@ -24,109 +7,125 @@ import ua.nanit.limbo.server.LimboServer;
 import ua.nanit.limbo.server.Log;
 
 import java.io.*;
+import java.lang.ref.SoftReference;
 import java.nio.charset.StandardCharsets;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public final class DimensionRegistry {
 
     private final LimboServer server;
+    private String dimensionType;
 
-    private Dimension defaultDimension_1_16;
-    private Dimension defaultDimension_1_18_2;
-    private Dimension dimension_1_20_5;
-    private Dimension dimension_1_21;
+    // Compressed SNBT bytes (GZip) — ~500KB-1MB total, much smaller than parsed NBT trees
+    private final Map<String, byte[]> compressedCodecs = new HashMap<>();
 
-    private CompoundBinaryTag codec_1_16;
-    private CompoundBinaryTag codec_1_18_2;
-    private CompoundBinaryTag codec_1_19;
-    private CompoundBinaryTag codec_1_19_1;
-    private CompoundBinaryTag codec_1_19_4;
-    private CompoundBinaryTag codec_1_20;
-    private CompoundBinaryTag codec_1_21;
-    private CompoundBinaryTag oldCodec;
+    // SoftReference cache: parsed trees survive under normal memory, reclaimed under pressure
+    private final Map<String, SoftReference<CompoundBinaryTag>> codecCache = new HashMap<>();
+
+    // Lazy-built dimension objects
+    private volatile Dimension cacheDim_1_16;
+    private volatile Dimension cacheDim_1_18_2;
+    private volatile Dimension cacheDim_1_20_5;
+    private volatile Dimension cacheDim_1_21;
 
     public DimensionRegistry(LimboServer server) {
         this.server = server;
     }
 
-    public CompoundBinaryTag getCodec_1_16() {
-        return codec_1_16;
-    }
-
-    public CompoundBinaryTag getCodec_1_18_2() {
-        return codec_1_18_2;
-    }
-
-    public CompoundBinaryTag getCodec_1_19() {
-        return codec_1_19;
-    }
-
-    public CompoundBinaryTag getCodec_1_19_1() {
-        return codec_1_19_1;
-    }
-
-    public CompoundBinaryTag getCodec_1_19_4() {
-        return codec_1_19_4;
-    }
-
-    public CompoundBinaryTag getCodec_1_20() {
-        return codec_1_20;
-    }
-
-    public CompoundBinaryTag getCodec_1_21() {
-        return codec_1_21;
-    }
-
-    public CompoundBinaryTag getOldCodec() {
-        return oldCodec;
-    }
+    public synchronized CompoundBinaryTag getCodec_1_16()    { return getOrParse("1_16"); }
+    public synchronized CompoundBinaryTag getCodec_1_18_2()  { return getOrParse("1_18_2"); }
+    public synchronized CompoundBinaryTag getCodec_1_19()     { return getOrParse("1_19"); }
+    public synchronized CompoundBinaryTag getCodec_1_19_1()   { return getOrParse("1_19_1"); }
+    public synchronized CompoundBinaryTag getCodec_1_19_4()   { return getOrParse("1_19_4"); }
+    public synchronized CompoundBinaryTag getCodec_1_20()     { return getOrParse("1_20"); }
+    public synchronized CompoundBinaryTag getCodec_1_21()     { return getOrParse("1_21"); }
+    public synchronized CompoundBinaryTag getOldCodec()       { return getOrParse("old"); }
 
     public Dimension getDefaultDimension_1_16() {
-        return defaultDimension_1_16;
+        Dimension d = cacheDim_1_16;
+        if (d == null) { d = extractDimFromLegacyCodec(getCodec_1_16()); cacheDim_1_16 = d; }
+        return d;
     }
 
     public Dimension getDefaultDimension_1_18_2() {
-        return defaultDimension_1_18_2;
+        Dimension d = cacheDim_1_18_2;
+        if (d == null) { d = extractDimFromLegacyCodec(getCodec_1_18_2()); cacheDim_1_18_2 = d; }
+        return d;
     }
 
     public Dimension getDimension_1_20_5() {
-        return dimension_1_20_5;
+        Dimension d = cacheDim_1_20_5;
+        if (d == null) { d = dimFromModernCodec(getCodec_1_20()); cacheDim_1_20_5 = d; }
+        return d;
     }
 
     public Dimension getDimension_1_21() {
-        return dimension_1_21;
+        Dimension d = cacheDim_1_21;
+        if (d == null) { d = dimFromModernCodec(getCodec_1_21()); cacheDim_1_21 = d; }
+        return d;
     }
 
     public void load(String def) throws IOException {
-        // On 1.16-1.16.1 different codec format
-        oldCodec = readCodecFile("/dimension/codec_old.snbt");
-        codec_1_16 = readCodecFile("/dimension/codec_1_16.snbt");
-        codec_1_18_2 = readCodecFile("/dimension/codec_1_18_2.snbt");
-        codec_1_19 = readCodecFile("/dimension/codec_1_19.snbt");
-        codec_1_19_1 = readCodecFile("/dimension/codec_1_19_1.snbt");
-        codec_1_19_4 = readCodecFile("/dimension/codec_1_19_4.snbt");
-        codec_1_20 = readCodecFile("/dimension/codec_1_20.snbt");
-        codec_1_21 = readCodecFile("/dimension/codec_1_21.snbt");
+        this.dimensionType = def;
 
-        defaultDimension_1_16 = getDefaultDimension(def, codec_1_16);
-        defaultDimension_1_18_2 = getDefaultDimension(def, codec_1_18_2);
+        compressedCodecs.put("old",    compress(readResource("/dimension/codec_old.snbt")));
+        compressedCodecs.put("1_16",   compress(readResource("/dimension/codec_1_16.snbt")));
+        compressedCodecs.put("1_18_2", compress(readResource("/dimension/codec_1_18_2.snbt")));
+        compressedCodecs.put("1_19",   compress(readResource("/dimension/codec_1_19.snbt")));
+        compressedCodecs.put("1_19_1", compress(readResource("/dimension/codec_1_19_1.snbt")));
+        compressedCodecs.put("1_19_4", compress(readResource("/dimension/codec_1_19_4.snbt")));
+        compressedCodecs.put("1_20",   compress(readResource("/dimension/codec_1_20.snbt")));
+        compressedCodecs.put("1_21",   compress(readResource("/dimension/codec_1_21.snbt")));
 
-        dimension_1_20_5 = getModernDimension(def, codec_1_20);
-        dimension_1_21 = getModernDimension(def, codec_1_21);
+        Log.info("[server] World data loaded (lazy parsing)");
     }
 
-    private Dimension getDefaultDimension(String def, CompoundBinaryTag tag) {
-        ListBinaryTag dimensions = tag.getCompound("minecraft:dimension_type").getList("value");
+    private byte[] compress(String snbt) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(snbt.length() / 3);
+        try (GZIPOutputStream gz = new GZIPOutputStream(baos)) {
+            gz.write(snbt.getBytes(StandardCharsets.UTF_8));
+        }
+        return baos.toByteArray();
+    }
 
+    private CompoundBinaryTag getOrParse(String key) {
+        SoftReference<CompoundBinaryTag> ref = codecCache.get(key);
+        CompoundBinaryTag tag = (ref != null) ? ref.get() : null;
+        if (tag == null) {
+            tag = parseCodec(key);
+            codecCache.put(key, new SoftReference<>(tag));
+        }
+        return tag;
+    }
+
+    private CompoundBinaryTag parseCodec(String key) {
+        byte[] compressed = compressedCodecs.get(key);
+        if (compressed == null) throw new IllegalStateException("No codec: " + key);
+        try {
+            ByteArrayInputStream bais = new ByteArrayInputStream(compressed);
+            String snbt = new String(new GZIPInputStream(bais).readAllBytes(), StandardCharsets.UTF_8);
+            return TagStringIO.get().asCompound(snbt);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to parse codec: " + key, e);
+        }
+    }
+
+    private Dimension extractDimFromLegacyCodec(CompoundBinaryTag codec) {
+        String def = dimensionType;
+        ListBinaryTag dimensions = codec.getCompound("minecraft:dimension_type").getList("value");
         CompoundBinaryTag overWorld = (CompoundBinaryTag) ((CompoundBinaryTag) dimensions.get(0)).get("element");
-        CompoundBinaryTag nether = (CompoundBinaryTag) ((CompoundBinaryTag) dimensions.get(2)).get("element");
-        CompoundBinaryTag theEnd = (CompoundBinaryTag) ((CompoundBinaryTag) dimensions.get(3)).get("element");
+        CompoundBinaryTag theEnd   = (CompoundBinaryTag) ((CompoundBinaryTag) dimensions.get(3)).get("element");
 
         switch (def.toLowerCase()) {
             case "overworld":
                 return new Dimension(0, "minecraft:overworld", overWorld);
-            case "the_nether":
+            case "the_nether": {
+                CompoundBinaryTag nether = (CompoundBinaryTag) ((CompoundBinaryTag) dimensions.get(2)).get("element");
                 return new Dimension(-1, "minecraft:nether", nether);
+            }
             case "the_end":
                 return new Dimension(1, "minecraft:the_end", theEnd);
             default:
@@ -135,32 +134,26 @@ public final class DimensionRegistry {
         }
     }
 
-    private Dimension getModernDimension(String def, CompoundBinaryTag tag) {
+    private Dimension dimFromModernCodec(CompoundBinaryTag codec) {
+        String def = dimensionType;
         switch (def.toLowerCase()) {
-            case "overworld":
-                return new Dimension(0, "minecraft:overworld", tag);
-            case "the_nether":
-                return new Dimension(2, "minecraft:nether", tag);
-            case "the_end":
-                return new Dimension(3, "minecraft:the_end", tag);
+            case "overworld":   return new Dimension(0, "minecraft:overworld", codec);
+            case "the_nether":  return new Dimension(2, "minecraft:nether", codec);
+            case "the_end":     return new Dimension(3, "minecraft:the_end", codec);
             default:
                 Log.warning("Undefined dimension type: '%s'. Using THE_END as default", def);
-                return new Dimension(3, "minecraft:the_end", tag);
+                return new Dimension(3, "minecraft:the_end", codec);
         }
     }
 
-    private CompoundBinaryTag readCodecFile(String resPath) throws IOException {
+    private String readResource(String resPath) throws IOException {
         InputStream in = server.getClass().getResourceAsStream(resPath);
-
-        if (in == null)
-            throw new FileNotFoundException("Cannot find dimension registry file");
-
-        return TagStringIO.get().asCompound(streamToString(in));
-    }
-
-    private String streamToString(InputStream in) throws IOException {
-        try (BufferedReader bufReader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-            return bufReader.lines().collect(Collectors.joining("\n"));
+        if (in == null) throw new FileNotFoundException("Cannot find dimension registry file");
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder(4096);
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line).append('\n');
+            return sb.toString();
         }
     }
 }

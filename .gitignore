@@ -3,3 +3,4 @@ lib/
 *.dat
 *.log
 *.yaml
+*.hprof
