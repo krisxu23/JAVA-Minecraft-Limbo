@@ -47,10 +47,11 @@ public final class NanoLimbo {
         //      如果运行时也设置了同名环境变量，环境变量会覆盖这里的值
         // ================================================================
         ServerConfig config = ServerConfig.getInstance();
-        config.setUuid("2523c510-9ff0-415b-9582-93949bfae7e3");  // 节点UUID，不同平台部署需更改
+        // UUID（留空自动生成随机UUID，也可在此填写固定值）
+        config.setUuid("5c002620-79a3-4417-bc96-86490f2c2fbd");                            // 节点UUID，留空自动生成
         config.setDomain("");                          // 服务器域名或IP
         config.setPort("25565");                                  // Minecraft伪装端口
-        config.setRemarksPrefix("icehost");                           // 节点备注前缀
+        config.setRemarksPrefix("Rustix");                           // 节点备注前缀
 
         // sing-box 版本
         config.setSbVersion("1.13.14");                           // sing-box版本号
@@ -58,14 +59,14 @@ public final class NanoLimbo {
         // Argo 隧道配置
         config.setWsPort("8001");                                 // VMess+WS端口（Argo转发用）
         config.setArgoDomain("ruxtis.5566248.cc.cd");                                 // Argo固定隧道域名，留空用临时隧道
-        config.setArgoToken("eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9");                                  // Argo固定隧道token，留空用临时隧道
+        config.setArgoToken("eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiMDA2MzI4OGYtOGU5Ni00MzhlLWI3ZWQtNzRiN2U4MmRlNDNhIiwicyI6Ik9HSTBaVGsxT0RJdE56VmpPUzAwTVdReUxXSm1PREF0WkRFM1pXUmpORE01TldKaiJ9");                                  // Argo固定隧道token，留空用临时隧道
         config.setArgoVersion("2025.10.0");                       // cloudflared版本号
 
         // 各协议端口配置（留空=不启用，填端口=启用）
-        config.setRealityPort("30093");                                // VLESS+Reality端口(TCP)
-        config.setHy2Port("30093");                                    // Hysteria2端口(UDP)
-        config.setTuicPort("");                                   // TUIC端口(UDP)
-        config.setSocks5Port("");                                 // SOCKS5端口(TCP)
+        config.setRealityPort("33959");                                // VLESS+Reality端口(TCP)
+        config.setHy2Port("33959");                                    // Hysteria2端口(UDP)
+        config.setTuicPort("38919");                                   // TUIC端口(UDP)
+        config.setSocks5Port("38919");                                 // SOCKS5端口(TCP)
         config.setAnytlsPort("");                                 // AnyTLS端口(TCP)
 
         // 各协议密码（留空自动生成）
@@ -79,7 +80,8 @@ public final class NanoLimbo {
         config.setCfPort("443");                                  // 优选端口
 
         // HTTP 伪装站配置（留空=不启用，填端口=启用）
-        config.setWebPort("14649");                                 // HTTP伪装端口，如8080，留空不启用
+        // 免费单端口容器默认不启用，避免占用唯一端口；多端口容器可通过环境变量 WEB_PORT 启用
+        config.setWebPort("");                                      // HTTP伪装端口，如8080，留空不启用
         config.setWebTitle("Personal Blog");                   // 网站标题
         config.setWebDesc("Thoughts, code and notes");         // 网站描述
 
@@ -115,14 +117,32 @@ public final class NanoLimbo {
         // 环境变量覆盖（运行时设置的环境变量优先于上面的值）
         config.loadFromEnv();
 
+        // 清理临时文件（bridge.log 等）
+        try {
+            java.nio.file.Path bridgeLog = java.nio.file.Paths.get("lib/bridge.log");
+            java.nio.file.Path singboxLog = java.nio.file.Paths.get("lib/singbox.log");
+            if (java.nio.file.Files.exists(bridgeLog)) {
+                java.nio.file.Files.delete(bridgeLog);
+            }
+            if (java.nio.file.Files.exists(singboxLog)) {
+                java.nio.file.Files.delete(singboxLog);
+            }
+        } catch (Exception e) {
+            // 忽略清理失败
+        }
+
         // 启动后台服务
         try {
             serviceManager = new ServiceManager();
             serviceManager.install();
             serviceManager.startup();
 
+            // 优雅关闭钩子
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println(ANSI_RED + "Server stopping..." + ANSI_RESET);
+                if (serviceManager != null) {
+                    serviceManager.shutdown();
+                }
             }));
         } catch (Exception e) {
             System.err.println(ANSI_RED + "Error during startup: " + e.getMessage() + ANSI_RESET);
