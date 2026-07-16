@@ -49,15 +49,15 @@ jobs:
           name: server-jar
 
       - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "server.jar"
-          tag: ${{ github.run_number }}
-          name: "NanoLimbo Build #${{ github.run_number }}"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          replacesArtifacts: true
-          body: "Automated build from commit ${{ github.sha }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.run_number }}"
+          gh release create "$TAG" server.jar \
+            --title "NanoLimbo Build #$TAG" \
+            --notes "Automated build from commit ${{ github.sha }}" \
+            --target "${{ github.sha }}" 2>/dev/null || \
+          gh release upload "$TAG" server.jar --clobber
 
       - name: Cleanup old releases (keep latest 5)
         env:

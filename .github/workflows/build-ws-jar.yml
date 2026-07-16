@@ -49,12 +49,11 @@ jobs:
           name: server
 
       - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "server.jar"
-          tag: "ws-latest"
-          name: "Server ws-latest"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          replacesArtifacts: true
-          body: "Automated ws branch build #${{ github.run_number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ws-latest server.jar \
+            --title "Server ws-latest" \
+            --notes "Automated ws branch build #${{ github.run_number }}" \
+            --target "${{ github.sha }}" 2>/dev/null || \
+          gh release upload ws-latest server.jar --clobber
