@@ -79,8 +79,8 @@ jobs:
             done
           fi
 
-          # Delete old workflow runs (keep latest 1)
-          runs=$(gh run list --workflow build-jar.yml --limit 50 --json databaseId --jq '.[].databaseId' | sort -n)
+          # Delete old workflow runs across ALL workflows (keep latest 1)
+          runs=$(gh run list --limit 50 --json databaseId --jq '.[].databaseId' | sort -n)
           count=$(echo "$runs" | wc -l)
           echo "Workflow runs: $count"
           if [ "$count" -gt 1 ]; then
