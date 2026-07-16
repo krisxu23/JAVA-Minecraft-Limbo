@@ -34,6 +34,9 @@ jobs:
           name: server
           path: server.jar
 
+      - name: Cleanup build cache
+        run: rm -rf .gradle build
+
   release:
     needs: build
     runs-on: ubuntu-latest

@@ -34,6 +34,9 @@ jobs:
           name: server-jar
           path: server.jar
 
+      - name: Cleanup build cache
+        run: rm -rf .gradle build
+
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -55,3 +58,17 @@ jobs:
           allowUpdates: true
           replacesArtifacts: true
           body: "Automated build from commit ${{ github.sha }}"
+
+      - name: Cleanup old releases (keep latest 5)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tags=$(gh release list --limit 50 --json tagName --jq '.[].tagName | select(test("^\\d+$"))' | sort -n)
+          count=$(echo "$tags" | wc -l)
+          echo "Build releases: $count"
+          if [ "$count" -le 5 ]; then exit 0; fi
+          keep=$((count - 5))
+          echo "$tags" | head -n "$keep" | while read tag; do
+            echo "Deleting: $tag"
+            gh release delete "$tag" --yes --cleanup-tag
+          done
