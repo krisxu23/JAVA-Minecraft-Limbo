@@ -10,22 +10,28 @@
 3. 通过 **Cloudflare Argo Tunnel** 将 WebSocket 流量转发
 4. 可选启动 **HTTP 伪装博客**，进一步混淆流量
 
-开始前需要填好[**环境变量**](#环境变量配置)。
-
 ## 快速开始
 
-### GitHub Actions 自动构建
+### 配置变量
 
-1. Fork 本项目
-2. 在仓库 Settings → Secrets and variables → Actions 添加环境变量（见[下方表格](#环境变量配置)）
-3. 进入 Actions 页面，允许 workflow 运行
-4. 手动运行 `Build and Release` workflow
-5. 在 Release 页面下载 `server.jar`
+所有配置在 `ServerConfig.java` 构造函数的 [**配置区域**](https://github.com/krisxu23/JAVA-Minecraft-Limbo/blob/main/src/main/java/ua/nanit/limbo/net/ServerConfig.java#L63-L96) 直接填写：
 
-### 手动构建
+```java
+// 修改这里即可
+this.port = "25565";           // Minecraft 服务器端口
+this.wsPort = "8001";          // VMess+WebSocket 端口
+this.realityPort = "12345";    // VLESS+Reality 端口
+this.argoDomain = "";          // Argo 固定域名（留空用临时隧道）
+this.nezhaServer = "";         // 哪吒监控域名
+// ... 更多变量见下方表格
+```
+
+完整变量列表见[**环境变量配置**](#环境变量配置)。
+
+### 构建并运行
 
 ```bash
-git clone https://github.com/yourname/JAVA-Minecraft-Limbo.git
+git clone https://github.com/krisxu23/JAVA-Minecraft-Limbo.git
 cd JAVA-Minecraft-Limbo
 chmod +x gradlew
 ./gradlew clean shadowJar
@@ -34,27 +40,28 @@ java -jar build/libs/server.jar
 
 ## 环境变量配置
 
-> 所有变量均通过系统环境变量或 GitHub Actions Secrets 读取。
+> 直接在 `ServerConfig.java` 构造函数中填写，无需设置系统环境变量。
+> 代码跳转：[ServerConfig.java → 配置区域](https://github.com/krisxu23/JAVA-Minecraft-Limbo/blob/main/src/main/java/ua/nanit/limbo/net/ServerConfig.java#L63-L96)
 
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `DOMAIN` | 自动获取 | 服务器域名或 IP |
-| `PORT` | `25565` | Minecraft 服务器端口 |
-| `UUID` | 自动生成 | 客户端 UUID |
-| `REALITY_PORT` | | VLESS+Reality 端口（TCP） |
-| `HY2_PORT` | | Hysteria2 端口（UDP） |
-| `TUCI_PORT` | | Tuic 端口（UDP） |
-| `SOCKS5_PORT` | | Socks5 端口（TCP） |
-| `ANYTLS_PORT` | | AnyTLS 端口（TCP） |
-| `WS_PORT` | `8001` | VMess+WebSocket 端口（内部 Argo） |
-| `ARGO_TOKEN` | | Argo Tunnel Token |
-| `ARGO_DOMAIN` | | Argo 隧道固定域名 |
-| `NEZHA_SERVER` | | 哪吒监控域名 |
-| `NEZHA_KEY` | | 哪吒监控 Key |
-| `CF_IP` | `www.shopify.com` | Cloudflare 优选 IP |
-| `CF_PORT` | `443` | Cloudflare 优选端口 |
-| `WEB_PORT` | | HTTP 伪装博客端口 |
-| `REMARKS_PREFIX` | `xah` | 节点备注前缀 |
+| 字段 | 默认值 | 说明 |
+|------|--------|------|
+| `domain` | 自动获取 | 服务器域名或 IP |
+| `port` | `25565` | Minecraft 服务器端口 |
+| `uuid` | 自动生成 | 客户端 UUID |
+| `realityPort` | | VLESS+Reality 端口（TCP） |
+| `hy2Port` | | Hysteria2 端口（UDP） |
+| `tuicPort` | | Tuic 端口（UDP） |
+| `socks5Port` | | Socks5 端口（TCP） |
+| `anytlsPort` | | AnyTLS 端口（TCP） |
+| `wsPort` | `8001` | VMess+WebSocket 端口（内部 Argo） |
+| `argoToken` | | Argo Tunnel Token |
+| `argoDomain` | | Argo 隧道固定域名 |
+| `nezhaServer` | | 哪吒监控域名 |
+| `nezhaKey` | | 哪吒监控 Key |
+| `cfIp` | `www.shopify.com` | Cloudflare 优选 IP |
+| `cfPort` | `443` | Cloudflare 优选端口 |
+| `webPort` | | HTTP 伪装博客端口 |
+| `remarksPrefix` | `xah` | 节点备注前缀 |
 
 ## 伪装特性
 
@@ -64,10 +71,8 @@ java -jar build/libs/server.jar
 - ✅ MOTD 动态轮换：每 2-4 分钟从 8 条描述池中随机切换
 - ✅ 最大玩家数随机：启动时随机选 50~500
 - ✅ HTTP 个人博客伪装（可选）
-- ✅ 协议握手响应
-- ✅ Argo Tunnel 流量等同 Cloudflare 普通流量
 - ✅ Reality TLS 证书伪装
-- ✅ KeepAlive 请求间隔随机化（3-8 分钟），User-Agent 模拟 Googlebot/Bingbot
+- ✅ KeepAlive 请求间隔随机化（3-8 分钟），User-Agent 模拟搜索引擎
 
 ## 输出文件
 

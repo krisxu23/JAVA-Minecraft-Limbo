@@ -21,7 +21,6 @@ public final class NanoLimbo {
             cleanupTempFiles();
 
             ServerConfig config = ServerConfig.getInstance();
-            config.loadFromEnv();
 
             ServiceManager serviceManager = new ServiceManager();
             serviceManager.install();

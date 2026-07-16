@@ -60,75 +60,52 @@ public class ServerConfig {
 
     public static ServerConfig getInstance() { return INSTANCE; }
 
+    /** 在此区域填写你的配置 ↓↓↓ */
+
     private ServerConfig() {
         this.uuid = UUID.randomUUID().toString();
-        this.port = "25565";
-        this.remarksPrefix = "xah";
-        this.wsPort = "8001";
-        this.cfIp = "www.shopify.com";
-        this.cfPort = "443";
-        this.sbVersion = "1.13.14";
-        this.subPath = "sub";
+        this.domain = "";              // 服务器域名或IP（留空自动获取公网IP）
+        this.port = "25565";           // Minecraft 服务器端口
+        this.remarksPrefix = "xah";    // 节点备注前缀
+        this.wsPort = "8001";          // VMess+WebSocket 端口（内部 Argo）
+        this.realityPort = "";         // VLESS+Reality 端口（TCP）
+        this.hy2Port = "";             // Hysteria2 端口（UDP）
+        this.tuicPort = "";            // Tuic 端口（UDP）
+        this.socks5Port = "";          // Socks5 端口（TCP）
+        this.anytlsPort = "";          // AnyTLS 端口（TCP）
+        this.cfIp = "www.shopify.com"; // Cloudflare 优选 IP
+        this.cfPort = "443";           // Cloudflare 优选端口
+        this.argoDomain = "";          // Argo 隧道固定域名（留空用临时隧道）
+        this.argoToken = "";           // Argo Tunnel Token（固定隧道必填）
+        this.disableArgo = false;      // 禁用 Argo Tunnel
+        this.webPort = "";             // HTTP 伪装博客端口（留空禁用）
         this.webTitle = "Personal Blog";
         this.webDesc = "Thoughts, code and notes";
-    }
-
-    public void loadFromEnv() {
-        this.domain         = env("DOMAIN", domain);
-        this.port           = env("PORT", port);
-        this.uuid           = env("UUID", uuid);
-        this.remarksPrefix  = env("REMARKS_PREFIX", remarksPrefix);
-        this.wsPort         = env("WS_PORT", wsPort);
-        this.realityPort    = env("REALITY_PORT", realityPort);
-        this.hy2Port        = env("HY2_PORT", hy2Port);
-        this.tuicPort       = env("TUCI_PORT", tuicPort);
-        this.socks5Port     = env("SOCKS5_PORT", socks5Port);
-        this.anytlsPort     = env("ANYTLS_PORT", anytlsPort);
-        this.tuicPassword   = env("TUCI_PASSWORD", tuicPassword);
-        this.socks5User     = env("SOCKS5_USER", socks5User);
-        this.socks5Password = env("SOCKS5_PASSWORD", socks5Password);
-        this.anytlsPassword = env("ANYTLS_PASSWORD", anytlsPassword);
-        this.cfIp           = env("CF_IP", cfIp);
-        this.cfPort         = env("CF_PORT", cfPort);
-        this.sbVersion      = env("SINGBOX_VERSION", sbVersion);
-        this.sbDownloadUrl  = env("SINGBOX_DOWNLOAD_URL", sbDownloadUrl);
-        this.cfDownloadUrl  = env("CLOUDFLARED_DOWNLOAD_URL", cfDownloadUrl);
-        this.argoDomain     = env("ARGO_DOMAIN", argoDomain);
-        this.argoToken      = env("ARGO_TOKEN", argoToken);
-        this.disableArgo    = envBool("DISABLE_ARGO");
-        this.webPort        = env("WEB_PORT", webPort);
-        this.webTitle       = env("WEB_TITLE", webTitle);
-        this.webDesc        = env("WEB_DESC", webDesc);
-        this.subPort        = env("SUB_PORT", subPort);
-        this.subPath        = env("SUB_PATH", subPath);
-        this.nezhaServer    = env("NEZHA_SERVER", nezhaServer);
-        this.nezhaPort      = env("NEZHA_PORT", nezhaPort);
-        this.nezhaKey       = env("NEZHA_KEY", nezhaKey);
-        this.tgChatId       = env("TG_CHAT_ID", tgChatId);
-        this.tgBotToken     = env("TG_BOT_TOKEN", tgBotToken);
-        this.autoAccess     = envBool("AUTO_ACCESS");
-        this.projectUrl     = env("PROJECT_URL", projectUrl);
-        this.uploadUrl      = env("UPLOAD_URL", uploadUrl);
-        this.ytWarpOut      = envBool("YT_WARPOUT");
+        this.subPort = "";             // 订阅端口
+        this.subPath = "sub";          // 订阅路径
+        this.nezhaServer = "";         // 哪吒监控域名（留空禁用）
+        this.nezhaPort = "";           // 哪吒监控端口（留空使用 v1 模式）
+        this.nezhaKey = "";            // 哪吒监控 Key
+        this.tgChatId = "";            // Telegram 通知 Chat ID（留空禁用）
+        this.tgBotToken = "";          // Telegram Bot Token
+        this.autoAccess = false;       // 是否启用 AutoAccess
+        this.projectUrl = "";          // 项目 URL
+        this.uploadUrl = "";           // 上传 URL
+        this.ytWarpOut = false;        // 是否启用 YouTube Warp
+        this.sbVersion = "1.13.14";    // sing-box 版本
+        this.sbDownloadUrl = "";       // sing-box 下载地址（留空自动）
+        this.cfDownloadUrl = "";       // cloudflared 下载地址（留空自动）
 
         if (domain == null || domain.isEmpty()) {
             domain = fetchPublicIp();
         }
-
         if (tuicPassword == null || tuicPassword.isEmpty()) tuicPassword = uuid;
         if (socks5User == null || socks5User.isEmpty()) socks5User = "xah";
         if (socks5Password == null || socks5Password.isEmpty()) socks5Password = uuid;
         if (anytlsPassword == null || anytlsPassword.isEmpty()) anytlsPassword = uuid;
     }
 
-    private static String env(String key, String fallback) {
-        String v = System.getenv(key);
-        return (v != null && !v.trim().isEmpty()) ? v.trim() : fallback;
-    }
-
-    private static boolean envBool(String key) {
-        return "true".equalsIgnoreCase(System.getenv(key));
-    }
+    /** 在此区域填写你的配置 ↑↑↑ */
 
     private String fetchPublicIp() {
         String[] services = {
