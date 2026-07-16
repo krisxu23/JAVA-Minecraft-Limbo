@@ -168,16 +168,7 @@ public class NetService {
         String p = config.getRemarksPrefix();
         String d = config.getDomain();
 
-        String wsHost = config.getArgoDomain();
-        if (wsHost == null || wsHost.isEmpty()) wsHost = config.getCfIp();
-        if (wsHost != null && !wsHost.isEmpty()) {
-            String wsAddr = (config.getCfIp() != null && !config.getCfIp().isEmpty()) ? config.getCfIp() : wsHost;
-            String wsPort = (config.getCfPort() != null && !config.getCfPort().isEmpty()) ? config.getCfPort() : "443";
-            String json = "{\"v\":\"2\",\"ps\":\"" + p + "-ws-argo\",\"add\":\"" + wsAddr + "\",\"port\":\"" + wsPort + "\""
-                    + ",\"id\":\"" + config.getUuid() + "\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\""
-                    + ",\"host\":\"" + wsHost + "\",\"path\":\"/\",\"tls\":\"tls\",\"sni\":\"" + wsHost + "\"}";
-            links.add(String.format(WS_FMT, Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8))));
-        }
+        // VMess/Argo 链接由 TunnelService.updateDataFile() 在隧道启动后生成
         if (config.isRealityEnabled())
             links.add(String.format(RLT_FMT, config.getUuid(), d, config.getRealityPort(), config.getRealityPublicKey(), config.getRealityShortId(), p));
         if (config.isHy2Enabled())
