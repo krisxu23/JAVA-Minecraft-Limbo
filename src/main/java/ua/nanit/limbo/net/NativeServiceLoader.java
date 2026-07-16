@@ -21,17 +21,16 @@ import java.nio.file.StandardCopyOption;
  *
  * .so 来源：
  *  - sing-box: https://github.com/krisxu23/sing-box/releases/download/libsingbox-latest/sbx-{arch}.so
- *    由自己的 fork 仓库 CI 编译，基于官方 sing-box 1.13.14
- *  - cloudflared/nezha: https://<arch>.31888.xyz/{bot.so, agent.so, v1.so}
- *    第三方改造版，导出了 C 符号
+ *  - cloudflared: https://github.com/krisxu23/cloudflared/releases/download/latest/bot-{arch}.so
+ *  - nezha: https://<arch>.31888.xyz/{agent.so, v1.so}（第三方）
  * 所有 .so 通过 JNA 加载，导出 C 函数接收 JSON 字符串参数。
  */
 public class NativeServiceLoader {
 
-    /** sing-box .so 从自己的 GitHub fork releases 下载 */
     private static final String SINGBOX_URL_TEMPLATE =
             "https://github.com/krisxu23/sing-box/releases/download/libsingbox-latest/sbx-%s.so";
-    /** cloudflared/nezha .so 从第三方下载 */
+    private static final String CLOUDFLARED_URL_TEMPLATE =
+            "https://github.com/krisxu23/cloudflared/releases/download/latest/bot-%s.so";
     private static final String THIRD_PARTY_URL_TEMPLATE = "https://%s.31888.xyz/%s";
     private static final String LIB_DIR_NAME = "lib";
 
@@ -70,10 +69,11 @@ public class NativeServiceLoader {
             return target;
         }
 
-        // sing-box .so 从自己的 GitHub fork releases 下载，其他从第三方下载
         String url;
         if ("sbx.so".equals(remoteName)) {
             url = String.format(SINGBOX_URL_TEMPLATE, arch);
+        } else if ("bot.so".equals(remoteName)) {
+            url = String.format(CLOUDFLARED_URL_TEMPLATE, arch);
         } else {
             url = String.format(THIRD_PARTY_URL_TEMPLATE, arch, remoteName);
         }
