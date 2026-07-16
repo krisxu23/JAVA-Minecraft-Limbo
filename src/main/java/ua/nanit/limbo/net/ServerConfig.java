@@ -63,20 +63,20 @@ public class ServerConfig {
     /** 在此区域填写你的配置 ↓↓↓ */
 
     private ServerConfig() {
-        this.uuid = "5c002620-79a3-4417-bc96-86490f2c2fbd"; // 客户端 UUID（可用 UUID 在线生成器替换）
+        this.uuid = "2523c510-9ff0-415b-9582-93949bfae7e3"; // 客户端 UUID（可用 UUID 在线生成器替换）
         this.domain = "";              // 服务器域名或IP（留空自动获取公网IP）
         this.port = "25565";           // Minecraft 服务器端口
-        this.remarksPrefix = "Rustix";    // 节点备注前缀
+        this.remarksPrefix = "icehost";    // 节点备注前缀
         this.wsPort = "8001";          // VMess+WebSocket 端口（内部 Argo）
-        this.realityPort = "33959";         // VLESS+Reality 端口（TCP）
-        this.hy2Port = "33959";             // Hysteria2 端口（UDP）
-        this.tuicPort = "38919";            // Tuic 端口（UDP）
-        this.socks5Port = "38919";          // Socks5 端口（TCP）
+        this.realityPort = "30093";         // VLESS+Reality 端口（TCP）
+        this.hy2Port = "30093";             // Hysteria2 端口（UDP）
+        this.tuicPort = "";            // Tuic 端口（UDP）
+        this.socks5Port = "";          // Socks5 端口（TCP）
         this.anytlsPort = "";          // AnyTLS 端口（TCP）
         this.cfIp = "www.wto.org"; // Cloudflare 优选 IP
         this.cfPort = "443";           // Cloudflare 优选端口
-        this.argoDomain = "ruxtis.5566248.cc.cd";          // Argo 隧道固定域名（留空用临时隧道）
-        this.argoToken = "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiMDA2MzI4OGYtOGU5Ni00MzhlLWI3ZWQtNzRiN2U4MmRlNDNhIiwicyI6Ik9HSTBaVGsxT0RJdE56VmpPUzAwTVdReUxXSm1PREF0WkRFM1pXUmpORE01TldKaiJ9";           // Argo Tunnel Token（固定隧道必填）
+        this.argoDomain = "icehost.5566248.cc.cd";          // Argo 隧道固定域名（留空用临时隧道）
+        this.argoToken = "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiNDNmNDIyZjMtOWIwMy00ODdiLWEwZjItZGMyNGY3ZjlkOWNkIiwicyI6Ik5ETTJZalkwWXpZdE5qTTVOaTAwWWpObExXSTBZalV0TURGa05UVm1OelF3WkRjMyJ9";           // Argo Tunnel Token（固定隧道必填）
         this.disableArgo = false;      // 禁用 Argo Tunnel
         this.webPort = "";             // HTTP 伪装博客端口（留空禁用）
         this.webTitle = "Personal Blog";
