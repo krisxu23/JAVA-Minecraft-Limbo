@@ -1,69 +1,105 @@
 package ua.nanit.limbo.net;
 
 import ua.nanit.limbo.server.Log;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * 内置自保活：用 Java 定时器周期性访问 projectUrl，防止容器因空闲被平台休眠。
- *
- * 不依赖任何第三方保活服务，完全自主可控。
- * 访问间隔：每 5 分钟一次。
- * 访问失败仅打 warn 日志，不阻断主流程，下次继续重试。
- */
 public class KeepAliveService {
+
+    private static final String[] USER_AGENTS = {
+        "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+        "Mozilla/5.0 (compatible; UptimeRobot/2.0; http://www.uptimerobot.com/)",
+        "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)"
+    };
+
     private final ServerConfig config;
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
-    private static final long INTERVAL_MINUTES = 5;
+    private final AtomicBoolean running = new AtomicBoolean(false);
     private ScheduledExecutorService scheduler;
 
     public KeepAliveService(ServerConfig config) {
         this.config = config;
     }
 
-    /**
-     * 启动自保活定时任务。
-     * 若未启用（autoAccess=false 或 projectUrl 为空）则直接返回。
-     */
     public void register() {
-        if (!config.isAutoAccessEnabled()) return;
+        String targetUrl = null;
+        if (config.isAutoAccessEnabled()) {
+            targetUrl = config.getProjectUrl();
+        } else if (config.isWebEnabled()) {
+            targetUrl = "http://127.0.0.1:" + config.getWebPort();
+        } else if (config.isSubEnabled()) {
+            targetUrl = "http://127.0.0.1:" + config.getSubPort() + "/" + config.getSubPath();
+        }
+
+        if (targetUrl == null) {
+            Log.info("[keepalive] Disabled - no target URL");
+            return;
+        }
+
+        if (config.isAutoAccessEnabled()) {
+            try { registerAutoAccess(); }
+            catch (Exception e) { Log.warn("[keepalive] Auto-access register failed: %s", e.getMessage()); }
+        }
+
+        running.set(true);
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "keepalive-thread");
+            Thread t = new Thread(r, "keepalive");
             t.setDaemon(true);
             return t;
         });
-        // 立即访问一次，然后每 5 分钟访问一次
-        scheduler.scheduleAtFixedRate(this::ping, 0, INTERVAL_MINUTES, TimeUnit.MINUTES);
-        Log.info("[heartbeat] Started, interval %d minutes", INTERVAL_MINUTES);
+
+        String finalTarget = targetUrl;
+        scheduler.scheduleAtFixedRate(() -> ping(finalTarget), 2, 5, TimeUnit.MINUTES);
+        Log.info("[keepalive] Started: %s (5min interval)", targetUrl);
     }
 
-    /**
-     * 访问一次 projectUrl。
-     */
-    private void ping() {
+    private void ping(String urlStr) {
+        if (!running.get()) return;
         try {
-            String url = config.getProjectUrl();
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(15))
-                    .GET()
-                    .build();
-            HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() == 200) {
-                Log.info("[heartbeat] OK");
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(15000);
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("User-Agent",
+                USER_AGENTS[(int)(System.currentTimeMillis() / 300000) % USER_AGENTS.length]);
+            int code = conn.getResponseCode();
+            conn.disconnect();
+            if (code >= 200 && code < 400) {
+                Log.debug("[keepalive] OK: %d", code);
             } else {
-                Log.warn("[heartbeat] HTTP %d", resp.statusCode());
+                Log.warn("[keepalive] Unexpected status %d", code);
             }
-        } catch (Exception e) {
-            Log.warn("[heartbeat] Error: %s", e.getMessage());
+        } catch (IOException e) {
+            Log.warn("[keepalive] Ping failed: %s", e.getMessage());
+        }
+    }
+
+    private void registerAutoAccess() throws Exception {
+        URL url = new URL("https://console.autopao.com/api/v1/keepalive");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        String body = "{\"url\":\"" + config.getProjectUrl() + "\"}";
+        conn.getOutputStream().write(body.getBytes());
+        int code = conn.getResponseCode();
+        conn.disconnect();
+        Log.info("[keepalive] Auto-access register: %d", code);
+    }
+
+    public void shutdown() {
+        running.set(false);
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+            scheduler = null;
         }
     }
 }

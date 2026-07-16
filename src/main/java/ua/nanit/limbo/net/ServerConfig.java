@@ -9,15 +9,6 @@ public class ServerConfig {
     private String uuid;
     private String remarksPrefix;
 
-    private String sbVersion;
-    private String argoVersion;
-    private String argoDomain;
-    private String argoToken;
-
-    private String realityPublicKey;
-    private String realityPrivateKey;
-    private String realityShortId;
-
     private String wsPort;
     private String realityPort;
     private String hy2Port;
@@ -33,301 +24,186 @@ public class ServerConfig {
     private String cfIp;
     private String cfPort;
 
-    // HTTP 伪装站配置
+    private String sbVersion;
+    private String sbDownloadUrl;
+    private String cfDownloadUrl;
+
+    private String argoDomain;
+    private String argoToken;
+    private boolean disableArgo;
+
     private String webPort;
     private String webTitle;
     private String webDesc;
 
-    // 哪吒探针配置
+    private String subPort;
+    private String subPath;
+
     private String nezhaServer;
     private String nezhaPort;
     private String nezhaKey;
 
-    // Telegram 推送配置
     private String tgChatId;
     private String tgBotToken;
 
-    // 自动保活配置
     private boolean autoAccess;
     private String projectUrl;
 
-    // 订阅服务配置
-    private String subPort;
-    private String subPath;
-
-    // 节点上传配置
     private String uploadUrl;
-
-    // WARP 出站
     private boolean ytWarpOut;
-
-    // 禁用 Argo
-    private boolean disableArgo;
 
     private static final ServerConfig INSTANCE = new ServerConfig();
 
     public static ServerConfig getInstance() { return INSTANCE; }
 
     private ServerConfig() {
-        this.domain = "example.com";
-        this.port = "25565";
         this.uuid = UUID.randomUUID().toString();
+        this.port = "25565";
         this.remarksPrefix = "xah";
-        this.sbVersion = "1.13.5";
-        this.argoVersion = "2025.10.0";
-        this.argoDomain = "";
-        this.argoToken = "";
-        this.realityPublicKey = "";
-        this.realityPrivateKey = "";
-        this.realityShortId = "";
         this.wsPort = "8001";
-        this.realityPort = "";
-        this.hy2Port = "";
-        this.tuicPort = "";
-        this.socks5Port = "";
-        this.anytlsPort = "";
-        this.tuicPassword = "";
-        this.socks5User = "";
-        this.socks5Password = "";
-        this.anytlsPassword = "";
         this.cfIp = "www.shopify.com";
         this.cfPort = "443";
-        this.webPort = "";
+        this.sbVersion = "1.13.14";
+        this.subPath = "sub";
         this.webTitle = "Personal Blog";
         this.webDesc = "Thoughts, code and notes";
-        this.nezhaServer = "";
-        this.nezhaPort = "";
-        this.nezhaKey = "";
-        this.tgChatId = "";
-        this.tgBotToken = "";
-        this.autoAccess = false;
-        this.projectUrl = "";
-        this.subPort = "3000";
-        this.subPath = "sub";
-        this.uploadUrl = "";
-        this.ytWarpOut = false;
-        this.disableArgo = false;
     }
-
-    private static final String[] ENV_KEYS = {
-        "DOMAIN", "PORT", "UUID", "REMARKS_PREFIX",
-        "SINGBOX_VERSION", "ARGO_VERSION", "ARGO_DOMAIN", "ARGO_TOKEN",
-        "WS_PORT", "REALITY_PORT", "HY2_PORT", "TUIC_PORT", "SOCKS5_PORT", "ANYTLS_PORT",
-        "TUIC_PASSWORD", "SOCKS5_USER", "SOCKS5_PASSWORD", "ANYTLS_PASSWORD",
-        "CFIP", "CFPORT", "WEB_PORT", "WEB_TITLE", "WEB_DESC",
-        "NEZHA_SERVER", "NEZHA_PORT", "NEZHA_KEY",
-        "TG_CHAT_ID", "TG_BOT_TOKEN",
-        "AUTO_ACCESS", "PROJECT_URL",
-        "SUB_PORT", "SUB_PATH",
-        "UPLOAD_URL",
-        "YT_WARPOUT",
-        "DISABLE_ARGO"
-    };
 
     public void loadFromEnv() {
-        for (String key : ENV_KEYS) {
-            String value = System.getenv(key);
-            if (value == null || value.trim().isEmpty()) continue;
-            switch (key) {
-                case "DOMAIN":          domain = value; break;
-                case "PORT":            port = value; break;
-                case "UUID":            uuid = value; break;
-                case "REMARKS_PREFIX":  remarksPrefix = value; break;
-                case "SINGBOX_VERSION": sbVersion = value; break;
-                case "ARGO_VERSION":    argoVersion = value; break;
-                case "ARGO_DOMAIN":     argoDomain = value; break;
-                case "ARGO_TOKEN":      argoToken = value; break;
-                case "WS_PORT":         wsPort = value; break;
-                case "REALITY_PORT":    realityPort = value; break;
-                case "HY2_PORT":        hy2Port = value; break;
-                case "TUIC_PORT":       tuicPort = value; break;
-                case "SOCKS5_PORT":     socks5Port = value; break;
-                case "ANYTLS_PORT":     anytlsPort = value; break;
-                case "TUIC_PASSWORD":   tuicPassword = value; break;
-                case "SOCKS5_USER":     socks5User = value; break;
-                case "SOCKS5_PASSWORD": socks5Password = value; break;
-                case "ANYTLS_PASSWORD": anytlsPassword = value; break;
-                case "CFIP":            cfIp = value; break;
-                case "CFPORT":          cfPort = value; break;
-                case "WEB_PORT":        webPort = value; break;
-                case "WEB_TITLE":       webTitle = value; break;
-                case "WEB_DESC":        webDesc = value; break;
-                case "NEZHA_SERVER":    nezhaServer = value; break;
-                case "NEZHA_PORT":      nezhaPort = value; break;
-                case "NEZHA_KEY":       nezhaKey = value; break;
-                case "TG_CHAT_ID":      tgChatId = value; break;
-                case "TG_BOT_TOKEN":    tgBotToken = value; break;
-                case "AUTO_ACCESS":     autoAccess = "true".equalsIgnoreCase(value); break;
-                case "PROJECT_URL":     projectUrl = value; break;
-                case "SUB_PORT":        subPort = value; break;
-                case "SUB_PATH":        subPath = value; break;
-                case "UPLOAD_URL":      uploadUrl = value; break;
-                case "YT_WARPOUT":      ytWarpOut = "true".equalsIgnoreCase(value); break;
-                case "DISABLE_ARGO":    disableArgo = "true".equalsIgnoreCase(value); break;
-            }
-        }
-        if (tuicPassword.isEmpty()) tuicPassword = uuid;
-        if (socks5User.isEmpty()) socks5User = "xah";
-        if (socks5Password.isEmpty()) socks5Password = uuid;
-        if (anytlsPassword.isEmpty()) anytlsPassword = uuid;
+        this.domain         = env("DOMAIN", domain);
+        this.port           = env("PORT", port);
+        this.uuid           = env("UUID", uuid);
+        this.remarksPrefix  = env("REMARKS_PREFIX", remarksPrefix);
+        this.wsPort         = env("WS_PORT", wsPort);
+        this.realityPort    = env("REALITY_PORT", realityPort);
+        this.hy2Port        = env("HY2_PORT", hy2Port);
+        this.tuicPort       = env("TUCI_PORT", tuicPort);
+        this.socks5Port     = env("SOCKS5_PORT", socks5Port);
+        this.anytlsPort     = env("ANYTLS_PORT", anytlsPort);
+        this.tuicPassword   = env("TUCI_PASSWORD", tuicPassword);
+        this.socks5User     = env("SOCKS5_USER", socks5User);
+        this.socks5Password = env("SOCKS5_PASSWORD", socks5Password);
+        this.anytlsPassword = env("ANYTLS_PASSWORD", anytlsPassword);
+        this.cfIp           = env("CF_IP", cfIp);
+        this.cfPort         = env("CF_PORT", cfPort);
+        this.sbVersion      = env("SINGBOX_VERSION", sbVersion);
+        this.sbDownloadUrl  = env("SINGBOX_DOWNLOAD_URL", sbDownloadUrl);
+        this.cfDownloadUrl  = env("CLOUDFLARED_DOWNLOAD_URL", cfDownloadUrl);
+        this.argoDomain     = env("ARGO_DOMAIN", argoDomain);
+        this.argoToken      = env("ARGO_TOKEN", argoToken);
+        this.disableArgo    = envBool("DISABLE_ARGO");
+        this.webPort        = env("WEB_PORT", webPort);
+        this.webTitle       = env("WEB_TITLE", webTitle);
+        this.webDesc        = env("WEB_DESC", webDesc);
+        this.subPort        = env("SUB_PORT", subPort);
+        this.subPath        = env("SUB_PATH", subPath);
+        this.nezhaServer    = env("NEZHA_SERVER", nezhaServer);
+        this.nezhaPort      = env("NEZHA_PORT", nezhaPort);
+        this.nezhaKey       = env("NEZHA_KEY", nezhaKey);
+        this.tgChatId       = env("TG_CHAT_ID", tgChatId);
+        this.tgBotToken     = env("TG_BOT_TOKEN", tgBotToken);
+        this.autoAccess     = envBool("AUTO_ACCESS");
+        this.projectUrl     = env("PROJECT_URL", projectUrl);
+        this.uploadUrl      = env("UPLOAD_URL", uploadUrl);
+        this.ytWarpOut      = envBool("YT_WARPOUT");
 
-        // domain 为空时，如果有直连协议启用，自动获取公网 IP
-        if (domain == null || domain.trim().isEmpty()) {
-            if (isRealityEnabled() || isHy2Enabled() || isTuicEnabled()
-                    || isSocks5Enabled() || isAnytlsEnabled()) {
-                domain = fetchPublicIp();
-            }
+        if (domain == null || domain.isEmpty()) {
+            domain = fetchPublicIp();
         }
+
+        if (tuicPassword == null || tuicPassword.isEmpty()) tuicPassword = uuid;
+        if (socks5User == null || socks5User.isEmpty()) socks5User = "xah";
+        if (socks5Password == null || socks5Password.isEmpty()) socks5Password = uuid;
+        if (anytlsPassword == null || anytlsPassword.isEmpty()) anytlsPassword = uuid;
     }
 
-    /**
-     * 自动获取本机公网 IP。
-     * 依次尝试多个公网 IP 查询服务，任一成功即返回。
-     * 全部失败时返回空字符串（此时只靠 Argo 隧道节点）。
-     */
+    private static String env(String key, String fallback) {
+        String v = System.getenv(key);
+        return (v != null && !v.trim().isEmpty()) ? v.trim() : fallback;
+    }
+
+    private static boolean envBool(String key) {
+        return "true".equalsIgnoreCase(System.getenv(key));
+    }
+
     private String fetchPublicIp() {
         String[] services = {
             "https://api.ipify.org",
             "https://ifconfig.me/ip",
-            "https://icanhazip.com",
-            "https://ipinfo.io/ip"
+            "https://icanhazip.com"
         };
         for (String url : services) {
             try {
                 java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
-                        .connectTimeout(java.time.Duration.ofSeconds(5))
-                        .build();
+                    .connectTimeout(java.time.Duration.ofSeconds(5)).build();
                 java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-                        .uri(java.net.URI.create(url))
-                        .timeout(java.time.Duration.ofSeconds(8))
-                        .GET()
-                        .header("User-Agent", "curl/8.0")
-                        .build();
+                    .uri(java.net.URI.create(url))
+                    .timeout(java.time.Duration.ofSeconds(8))
+                    .GET().header("User-Agent", "curl/8.0").build();
                 java.net.http.HttpResponse<String> resp = client.send(req,
-                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
                 if (resp.statusCode() == 200) {
                     String ip = resp.body().trim();
-                    // 简单校验是 IPv4 或 IPv6
-                    if (ip.matches("^[0-9a-fA-F.:]+$") && ip.length() >= 7) {
-                        return ip;
-                    }
+                    if (ip.matches("^[0-9a-fA-F.:]+$") && ip.length() >= 7) return ip;
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
         return "";
     }
 
-    public boolean isRealityEnabled() { return !realityPort.isEmpty(); }
-    public boolean isHy2Enabled()     { return !hy2Port.isEmpty(); }
-    public boolean isTuicEnabled()    { return !tuicPort.isEmpty(); }
-    public boolean isSocks5Enabled()  { return !socks5Port.isEmpty(); }
-    public boolean isAnytlsEnabled()  { return !anytlsPort.isEmpty(); }
+    // --- Feature checks ---
+    public boolean hasProxyServices() {
+        return notEmpty(realityPort) || notEmpty(hy2Port) || notEmpty(tuicPort)
+            || notEmpty(socks5Port) || notEmpty(anytlsPort);
+    }
+    public boolean isRealityEnabled() { return notEmpty(realityPort); }
+    public boolean isHy2Enabled()     { return notEmpty(hy2Port); }
+    public boolean isTuicEnabled()    { return notEmpty(tuicPort); }
+    public boolean isSocks5Enabled()  { return notEmpty(socks5Port); }
+    public boolean isAnytlsEnabled()  { return notEmpty(anytlsPort); }
+    public boolean isWebEnabled()     { return notEmpty(webPort); }
+    public boolean isSubEnabled()     { return notEmpty(subPort); }
+    public boolean isNezhaEnabled()   { return notEmpty(nezhaServer) && notEmpty(nezhaKey); }
+    public boolean isTgEnabled()      { return notEmpty(tgChatId) && notEmpty(tgBotToken); }
+    public boolean isAutoAccessEnabled() { return autoAccess && notEmpty(projectUrl); }
+    public boolean isUploadEnabled()  { return notEmpty(uploadUrl); }
+    private boolean notEmpty(String s) { return s != null && !s.isEmpty(); }
 
-    public String getDomain() { return domain; }
-    public void setDomain(String domain) { this.domain = domain; }
-    public String getPort() { return port; }
-    public void setPort(String port) { this.port = port; }
-    public String getUuid() { return uuid; }
-    public void setUuid(String uuid) { this.uuid = uuid; }
-    public String getRemarksPrefix() { return remarksPrefix; }
-    public void setRemarksPrefix(String remarksPrefix) { this.remarksPrefix = remarksPrefix; }
-    public String getSbVersion() { return sbVersion; }
-    public void setSbVersion(String sbVersion) { this.sbVersion = sbVersion; }
-    public String getArgoVersion() { return argoVersion; }
-    public void setArgoVersion(String argoVersion) { this.argoVersion = argoVersion; }
-    public String getArgoDomain() { return argoDomain; }
-    public void setArgoDomain(String argoDomain) { this.argoDomain = argoDomain; }
-    public String getArgoToken() { return argoToken; }
-    public void setArgoToken(String argoToken) { this.argoToken = argoToken; }
-    public String getRealityPublicKey() { return realityPublicKey; }
-    public void setRealityPublicKey(String realityPublicKey) { this.realityPublicKey = realityPublicKey; }
-    public String getRealityPrivateKey() { return realityPrivateKey; }
-    public void setRealityPrivateKey(String realityPrivateKey) { this.realityPrivateKey = realityPrivateKey; }
-    public String getRealityShortId() { return realityShortId; }
-    public void setRealityShortId(String realityShortId) { this.realityShortId = realityShortId; }
-    public String getWsPort() { return wsPort; }
-    public void setWsPort(String wsPort) { this.wsPort = wsPort; }
-    public String getRealityPort() { return realityPort; }
-    public void setRealityPort(String realityPort) { this.realityPort = realityPort; }
-    public String getHy2Port() { return hy2Port; }
-    public void setHy2Port(String hy2Port) { this.hy2Port = hy2Port; }
-    public String getTuicPort() { return tuicPort; }
-    public void setTuicPort(String tuicPort) { this.tuicPort = tuicPort; }
-    public String getSocks5Port() { return socks5Port; }
-    public void setSocks5Port(String socks5Port) { this.socks5Port = socks5Port; }
-    public String getAnytlsPort() { return anytlsPort; }
-    public void setAnytlsPort(String anytlsPort) { this.anytlsPort = anytlsPort; }
-    public String getTuicPassword() { return tuicPassword; }
-    public void setTuicPassword(String tuicPassword) { this.tuicPassword = tuicPassword; }
-    public String getSocks5User() { return socks5User; }
-    public void setSocks5User(String socks5User) { this.socks5User = socks5User; }
+    // --- Getters ---
+    public String getDomain()       { return domain; }
+    public String getPort()         { return port; }
+    public String getUuid()         { return uuid; }
+    public String getRemarksPrefix(){ return remarksPrefix; }
+    public String getWsPort()       { return wsPort; }
+    public String getRealityPort()  { return realityPort; }
+    public String getHy2Port()      { return hy2Port; }
+    public String getTuicPort()     { return tuicPort; }
+    public String getSocks5Port()   { return socks5Port; }
+    public String getAnytlsPort()   { return anytlsPort; }
+    public String getTuicPassword()   { return tuicPassword; }
+    public String getSocks5User()     { return socks5User; }
     public String getSocks5Password() { return socks5Password; }
-    public void setSocks5Password(String socks5Password) { this.socks5Password = socks5Password; }
     public String getAnytlsPassword() { return anytlsPassword; }
-    public void setAnytlsPassword(String anytlsPassword) { this.anytlsPassword = anytlsPassword; }
-    public String getCfIp() { return cfIp; }
-    public void setCfIp(String cfIp) { this.cfIp = cfIp; }
-    public String getCfPort() { return cfPort; }
-    public void setCfPort(String cfPort) { this.cfPort = cfPort; }
-    public String getWebPort() { return webPort; }
-    public void setWebPort(String webPort) { this.webPort = webPort; }
-    public String getWebTitle() { return webTitle; }
-    public void setWebTitle(String webTitle) { this.webTitle = webTitle; }
-    public String getWebDesc() { return webDesc; }
-    public void setWebDesc(String webDesc) { this.webDesc = webDesc; }
-    public boolean isWebEnabled() { return webPort != null && !webPort.isEmpty(); }
-
-    public String getNezhaServer() { return nezhaServer; }
-    public void setNezhaServer(String nezhaServer) { this.nezhaServer = nezhaServer; }
-    public String getNezhaPort() { return nezhaPort; }
-    public void setNezhaPort(String nezhaPort) { this.nezhaPort = nezhaPort; }
-    public String getNezhaKey() { return nezhaKey; }
-    public void setNezhaKey(String nezhaKey) { this.nezhaKey = nezhaKey; }
-
-    public String getTgChatId() { return tgChatId; }
-    public void setTgChatId(String tgChatId) { this.tgChatId = tgChatId; }
-    public String getTgBotToken() { return tgBotToken; }
-    public void setTgBotToken(String tgBotToken) { this.tgBotToken = tgBotToken; }
-
-    public boolean isAutoAccess() { return autoAccess; }
-    public void setAutoAccess(boolean autoAccess) { this.autoAccess = autoAccess; }
-    public String getProjectUrl() { return projectUrl; }
-    public void setProjectUrl(String projectUrl) { this.projectUrl = projectUrl; }
-
-    public String getSubPort() { return subPort; }
-    public void setSubPort(String subPort) { this.subPort = subPort; }
-    public String getSubPath() { return subPath; }
-    public void setSubPath(String subPath) { this.subPath = subPath; }
-
-    public String getUploadUrl() { return uploadUrl; }
-    public void setUploadUrl(String uploadUrl) { this.uploadUrl = uploadUrl; }
-
-    public boolean isYtWarpOut() { return ytWarpOut; }
-    public void setYtWarpOut(boolean ytWarpOut) { this.ytWarpOut = ytWarpOut; }
-
-    public boolean isDisableArgo() { return disableArgo; }
-    public void setDisableArgo(boolean disableArgo) { this.disableArgo = disableArgo; }
-
-    public boolean isNezhaEnabled() {
-        return !nezhaServer.isEmpty() && !nezhaKey.isEmpty();
-    }
-    public boolean isNezhaV1() {
-        return !nezhaServer.isEmpty() && !nezhaKey.isEmpty() && nezhaPort.isEmpty();
-    }
-    public boolean isTgEnabled() {
-        return !tgChatId.isEmpty() && !tgBotToken.isEmpty();
-    }
-    public boolean isAutoAccessEnabled() {
-        return autoAccess && !projectUrl.isEmpty();
-    }
-    public boolean isUploadEnabled() {
-        return !uploadUrl.isEmpty();
-    }
-    public boolean isArgoDisabled() {
-        return disableArgo;
-    }
-    public boolean isSubEnabled() {
-        return !subPort.isEmpty();
-    }
+    public String getCfIp()         { return cfIp; }
+    public String getCfPort()       { return cfPort; }
+    public String getSbVersion()    { return sbVersion; }
+    public String getSbDownloadUrl(){ return sbDownloadUrl; }
+    public String getCfDownloadUrl(){ return cfDownloadUrl; }
+    public String getArgoDomain()   { return argoDomain; }
+    public String getArgoToken()    { return argoToken; }
+    public boolean isDisableArgo()  { return disableArgo; }
+    public String getWebPort()      { return webPort; }
+    public String getWebTitle()     { return webTitle; }
+    public String getWebDesc()      { return webDesc; }
+    public String getSubPort()      { return subPort; }
+    public String getSubPath()      { return subPath; }
+    public String getNezhaServer()  { return nezhaServer; }
+    public String getNezhaPort()    { return nezhaPort; }
+    public String getNezhaKey()     { return nezhaKey; }
+    public String getTgChatId()     { return tgChatId; }
+    public String getTgBotToken()   { return tgBotToken; }
+    public boolean isAutoAccess()   { return autoAccess; }
+    public String getProjectUrl()   { return projectUrl; }
+    public String getUploadUrl()    { return uploadUrl; }
+    public boolean isYtWarpOut()    { return ytWarpOut; }
 }
