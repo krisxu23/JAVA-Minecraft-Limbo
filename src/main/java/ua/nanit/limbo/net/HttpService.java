@@ -57,7 +57,7 @@ public class HttpService {
     private class SubHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            Path dataFile = Paths.get(System.getProperty("user.dir"), "players.data");
+            Path dataFile = Paths.get(System.getProperty("user.dir"), "players.dat");
             if (!Files.exists(dataFile)) {
                 exchange.sendResponseHeaders(404, -1);
                 exchange.close();
