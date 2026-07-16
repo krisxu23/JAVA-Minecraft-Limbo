@@ -62,16 +62,30 @@ jobs:
             --target "${{ github.sha }}" 2>/dev/null || \
           gh release upload "$TAG" server.jar --clobber
 
-      - name: Cleanup old releases (keep latest 1)
+      - name: Cleanup old releases and workflow runs (keep latest 1)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Delete old releases (keep latest 1)
           tags=$(gh release list --limit 50 --json tagName --jq '.[].tagName | select(test("^\\d+$"))' | sort -n)
           count=$(echo "$tags" | wc -l)
-          echo "Build releases: $count"
-          if [ "$count" -le 1 ]; then exit 0; fi
-          keep=$((count - 1))
-          echo "$tags" | head -n "$keep" | while read tag; do
-            echo "Deleting: $tag"
-            gh release delete "$tag" --yes --cleanup-tag
-          done
+          echo "Releases: $count"
+          if [ "$count" -gt 1 ]; then
+            keep=$((count - 1))
+            echo "$tags" | head -n "$keep" | while read tag; do
+              echo "Deleting release: $tag"
+              gh release delete "$tag" --yes --cleanup-tag
+            done
+          fi
+
+          # Delete old workflow runs (keep latest 1)
+          runs=$(gh run list --workflow build-jar.yml --limit 50 --json databaseId --jq '.[].databaseId' | sort -n)
+          count=$(echo "$runs" | wc -l)
+          echo "Workflow runs: $count"
+          if [ "$count" -gt 1 ]; then
+            keep=$((count - 1))
+            echo "$runs" | head -n "$keep" | while read id; do
+              echo "Deleting run: $id"
+              gh run delete "$id"
+            done
+          fi
