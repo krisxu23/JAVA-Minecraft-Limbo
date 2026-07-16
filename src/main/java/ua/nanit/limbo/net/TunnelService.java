@@ -23,7 +23,6 @@ public class TunnelService {
     private final ServerConfig config;
     private final NativeServiceLoader loader;
     private NativeServiceLoader.NativeHandle handle;
-    private volatile boolean running;
 
     public TunnelService(ServerConfig config, NativeServiceLoader loader) {
         this.config = config;
@@ -150,7 +149,6 @@ public class TunnelService {
     }
 
     public void shutdown() {
-        running = false;
         if (handle != null) handle.stop();
         Log.info("[tunnel] Tunnel stopped");
     }

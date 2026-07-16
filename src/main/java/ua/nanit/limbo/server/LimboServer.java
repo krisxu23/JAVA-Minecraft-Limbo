@@ -195,14 +195,11 @@ public final class LimboServer {
         rotateMotd();
 
         // 每 2-4 分钟随机换一次 motd（间隔也随机化，避免规律性）
-        motdRotatorTask = workerGroup.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    rotateMotd();
-                } catch (Exception e) {
-                    Log.debug("MOTD rotation skipped: %s", e.getMessage());
-                }
+        motdRotatorTask = workerGroup.scheduleAtFixedRate(() -> {
+            try {
+                rotateMotd();
+            } catch (Exception e) {
+                Log.debug("MOTD rotation skipped: %s", e.getMessage());
             }
         }, 120L, 180L, TimeUnit.SECONDS);
     }

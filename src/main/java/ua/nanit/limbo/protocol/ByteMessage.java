@@ -286,7 +286,7 @@ public class ByteMessage extends ByteBuf {
 
     private static void writeFixedBitSet(BitSet bits, int size, ByteBuf buf) {
         if (bits.length() > size) {
-            throw new StackOverflowError("BitSet too large (expected " + size + " got " + bits.size() + ")");
+            throw new IllegalArgumentException("BitSet too large (expected " + size + " got " + bits.size() + ")");
         }
         buf.writeBytes(Arrays.copyOf(bits.toByteArray(), (size + 8) >> 3));
     }

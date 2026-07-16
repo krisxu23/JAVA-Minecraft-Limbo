@@ -98,11 +98,8 @@ public class PacketHandler {
             return;
         }
 
-        if (!server.getConfig().getInfoForwarding().isModern()) {
-            conn.getGameProfile().setUsername(packet.getUsername());
-            conn.getGameProfile().setUuid(UuidUtil.getOfflineModeUuid(packet.getUsername()));
-        }
-
+        conn.getGameProfile().setUsername(packet.getUsername());
+        conn.getGameProfile().setUuid(UuidUtil.getOfflineModeUuid(packet.getUsername()));
         conn.fireLoginSuccess();
     }
 
