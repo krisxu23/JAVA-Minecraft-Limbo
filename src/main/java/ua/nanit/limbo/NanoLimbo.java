@@ -57,7 +57,7 @@ public final class NanoLimbo {
 
         // Argo 隧道配置
         config.setWsPort("8001");                                 // VMess+WS端口（Argo转发用）
-        config.setArgoDomain("votexa.5566248.cc.cd");                                 // Argo固定隧道域名，留空用临时隧道
+        config.setArgoDomain("ruxtis.5566248.cc.cd");                                 // Argo固定隧道域名，留空用临时隧道
         config.setArgoToken("eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9");                                  // Argo固定隧道token，留空用临时隧道
         config.setArgoVersion("2025.10.0");                       // cloudflared版本号
 
