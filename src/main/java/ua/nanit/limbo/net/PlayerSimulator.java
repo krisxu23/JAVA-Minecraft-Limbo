@@ -29,7 +29,6 @@ public class PlayerSimulator {
     private int currentOnline;
     private final List<Map.Entry<UUID, String>> activePlayers = new ArrayList<>();
     private final ScheduledExecutorService scheduler;
-    private final Set<String> usedNames = new HashSet<>();
 
     public PlayerSimulator() {
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -58,13 +57,11 @@ public class PlayerSimulator {
 
     private void rebuildActivePlayers() {
         activePlayers.clear();
-        usedNames.clear();
         List<String> pool = new ArrayList<>(Arrays.asList(FAKE_NAMES));
         Collections.shuffle(pool, ThreadLocalRandom.current());
         int count = Math.min(currentOnline, pool.size());
         for (int i = 0; i < count; i++) {
             String name = pool.get(i);
-            usedNames.add(name);
             activePlayers.add(new AbstractMap.SimpleEntry<>(UUID.randomUUID(), name));
         }
     }

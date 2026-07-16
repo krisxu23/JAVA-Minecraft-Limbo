@@ -174,7 +174,6 @@ public class ServerConfig {
     public String getArgoDomain()   { return argoDomain; }
     public void setArgoDomain(String v) { this.argoDomain = v; }
     public String getArgoToken()    { return argoToken; }
-    public boolean isDisableArgo()  { return disableArgo; }
     public boolean isArgoDisabled() { return disableArgo; }
     public String getWebPort()      { return webPort; }
     public String getWebTitle()     { return webTitle; }
