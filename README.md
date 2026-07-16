@@ -18,6 +18,7 @@
 
 ```java
 // 修改这里即可
+this.uuid = "b7766341-a06b-4957-bf2c-4e5b8b3d5e2e"; // 客户端 UUID
 this.port = "25565";           // Minecraft 服务器端口
 this.wsPort = "8001";          // VMess+WebSocket 端口
 this.realityPort = "12345";    // VLESS+Reality 端口
