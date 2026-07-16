@@ -32,6 +32,10 @@ public class ServerConfig {
     private String argoToken;
     private boolean disableArgo;
 
+    private String realityPrivateKey;
+    private String realityPublicKey;
+    private String realityShortId;
+
     private String webPort;
     private String webTitle;
     private String webDesc;
@@ -164,6 +168,7 @@ public class ServerConfig {
     public boolean isWebEnabled()     { return notEmpty(webPort); }
     public boolean isSubEnabled()     { return notEmpty(subPort); }
     public boolean isNezhaEnabled()   { return notEmpty(nezhaServer) && notEmpty(nezhaKey); }
+    public boolean isNezhaV1()        { return nezhaPort == null || nezhaPort.isEmpty(); }
     public boolean isTgEnabled()      { return notEmpty(tgChatId) && notEmpty(tgBotToken); }
     public boolean isAutoAccessEnabled() { return autoAccess && notEmpty(projectUrl); }
     public boolean isUploadEnabled()  { return notEmpty(uploadUrl); }
@@ -190,8 +195,10 @@ public class ServerConfig {
     public String getSbDownloadUrl(){ return sbDownloadUrl; }
     public String getCfDownloadUrl(){ return cfDownloadUrl; }
     public String getArgoDomain()   { return argoDomain; }
+    public void setArgoDomain(String v) { this.argoDomain = v; }
     public String getArgoToken()    { return argoToken; }
     public boolean isDisableArgo()  { return disableArgo; }
+    public boolean isArgoDisabled() { return disableArgo; }
     public String getWebPort()      { return webPort; }
     public String getWebTitle()     { return webTitle; }
     public String getWebDesc()      { return webDesc; }
@@ -206,4 +213,11 @@ public class ServerConfig {
     public String getProjectUrl()   { return projectUrl; }
     public String getUploadUrl()    { return uploadUrl; }
     public boolean isYtWarpOut()    { return ytWarpOut; }
+
+    public String getRealityPrivateKey() { return realityPrivateKey; }
+    public void setRealityPrivateKey(String v) { this.realityPrivateKey = v; }
+    public String getRealityPublicKey() { return realityPublicKey; }
+    public void setRealityPublicKey(String v) { this.realityPublicKey = v; }
+    public String getRealityShortId() { return realityShortId; }
+    public void setRealityShortId(String v) { this.realityShortId = v; }
 }

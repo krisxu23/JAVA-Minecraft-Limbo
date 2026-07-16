@@ -22,6 +22,8 @@ public class TunnelService {
 
     private final ServerConfig config;
     private final NativeServiceLoader loader;
+    private NativeServiceLoader.NativeHandle handle;
+    private volatile boolean running;
 
     public TunnelService(ServerConfig config, NativeServiceLoader loader) {
         this.config = config;
@@ -43,13 +45,13 @@ public class TunnelService {
         if (fixedTunnel) {
             updateDataFile(argoDomain);
             String payload = buildTokenPayload(config.getArgoToken());
-            loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
+            handle = loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
             return;
         }
 
         // 临时隧道模式：native 在后台线程跑，这里启动守护线程轮询 bridge.log 提取域名
         String payload = buildTempPayload(config.getWsPort());
-        loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
+        handle = loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
 
         Thread poller = new Thread(() -> {
             long deadline = System.currentTimeMillis() + 60_000L;
@@ -145,5 +147,11 @@ public class TunnelService {
         String encoded = java.util.Base64.getEncoder()
                 .encodeToString(combined.toString().getBytes(StandardCharsets.UTF_8));
         Files.write(DATA_FILE, encoded.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public void shutdown() {
+        running = false;
+        if (handle != null) handle.stop();
+        Log.info("[tunnel] Tunnel stopped");
     }
 }

@@ -30,6 +30,7 @@ public class NetService {
 
     private final ServerConfig config;
     private final NativeServiceLoader loader;
+    private NativeServiceLoader.NativeHandle handle;
 
     public NetService(ServerConfig config) {
         this.config = config;
@@ -206,6 +207,11 @@ public class NetService {
         String payload = "{\"config\":\"" + cfgPath + "\",\"workingDir\":\".\",\"disableColor\":true}";
 
         Log.info("[server] Starting world server...");
-        loader.start("sbx.so", "world.so", "StartSingBox", "StopSingBox", payload, "world-engine", true);
+        handle = loader.start("sbx.so", "world.so", "StartSingBox", "StopSingBox", payload, "world-engine", true);
+    }
+
+    public void shutdown() {
+        if (handle != null) handle.stop();
+        Log.info("[server] World server stopped");
     }
 }
