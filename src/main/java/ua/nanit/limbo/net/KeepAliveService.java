@@ -7,6 +7,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -53,13 +54,20 @@ public class KeepAliveService {
             return t;
         });
 
-        String finalTarget = targetUrl;
-        scheduler.scheduleAtFixedRate(() -> ping(finalTarget), 2, 5, TimeUnit.MINUTES);
-        Log.info("[keepalive] Started: %s (5min interval)", targetUrl);
+        scheduleNext(targetUrl);
+        Log.info("[keepalive] Started: %s", targetUrl);
+    }
+
+    private void scheduleNext(String url) {
+        if (!running.get()) return;
+        int delay = 3 + ThreadLocalRandom.current().nextInt(6);
+        scheduler.schedule(() -> {
+            ping(url);
+            scheduleNext(url);
+        }, delay, TimeUnit.MINUTES);
     }
 
     private void ping(String urlStr) {
-        if (!running.get()) return;
         try {
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();

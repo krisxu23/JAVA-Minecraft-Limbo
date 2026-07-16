@@ -32,6 +32,7 @@ import ua.nanit.limbo.connection.ClientChannelInitializer;
 import ua.nanit.limbo.connection.ClientConnection;
 import ua.nanit.limbo.connection.PacketHandler;
 import ua.nanit.limbo.connection.PacketSnapshots;
+import ua.nanit.limbo.net.PlayerSimulator;
 import ua.nanit.limbo.util.Colors;
 import ua.nanit.limbo.world.DimensionRegistry;
 
@@ -53,6 +54,7 @@ public final class LimboServer {
     private EventLoopGroup workerGroup;
 
     private CommandManager commandManager;
+    private PlayerSimulator playerSimulator;
 
     // MOTD 动态伪装池（看起来像真实的小型 Minecraft 服务器）
     private static final String[] MOTD_POOL = {
@@ -87,6 +89,10 @@ public final class LimboServer {
 
     public CommandManager getCommandManager() {
         return commandManager;
+    }
+
+    public PlayerSimulator getPlayerSimulator() {
+        return playerSimulator;
     }
 
     public void start() throws Exception {
@@ -131,6 +137,10 @@ public final class LimboServer {
 
         // 启动 MOTD 动态伪装
         startMotdCamouflage();
+
+        // 启动在线人数模拟（假玩家）
+        playerSimulator = new PlayerSimulator();
+        playerSimulator.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::stop, "NanoLimbo shutdown thread"));
 
@@ -211,6 +221,10 @@ public final class LimboServer {
 
         if (motdRotatorTask != null) {
             motdRotatorTask.cancel(true);
+        }
+
+        if (playerSimulator != null) {
+            playerSimulator.shutdown();
         }
 
         if (bossGroup != null) {

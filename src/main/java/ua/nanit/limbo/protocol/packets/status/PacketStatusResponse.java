@@ -17,6 +17,7 @@
 
 package ua.nanit.limbo.protocol.packets.status;
 
+import ua.nanit.limbo.net.PlayerSimulator;
 import ua.nanit.limbo.protocol.ByteMessage;
 import ua.nanit.limbo.protocol.PacketOut;
 import ua.nanit.limbo.protocol.registry.Version;
@@ -24,7 +25,7 @@ import ua.nanit.limbo.server.LimboServer;
 
 public class PacketStatusResponse implements PacketOut {
 
-    private static final String TEMPLATE = "{ \"version\": { \"name\": \"%s\", \"protocol\": %d }, \"players\": { \"max\": %d, \"online\": %d, \"sample\": [] }, \"description\": %s }";
+    private static final String TEMPLATE = "{ \"version\": { \"name\": \"%s\", \"protocol\": %d }, \"players\": { \"max\": %d, \"online\": %d, \"sample\": %s }, \"description\": %s }";
 
     private LimboServer server;
 
@@ -50,9 +51,15 @@ public class PacketStatusResponse implements PacketOut {
         String ver = server.getConfig().getPingData().getVersion();
         String desc = server.getConfig().getPingData().getDescription();
 
+        PlayerSimulator sim = server.getPlayerSimulator();
+        int simOnline = sim != null ? sim.getOnline() : 0;
+        int realOnline = server.getConnections().getCount();
+        int displayOnline = Math.max(realOnline, simOnline);
+        String sampleJson = sim != null ? sim.getSampleJson() : "[]";
+
         msg.writeString(getResponseJson(ver, protocol,
                 server.getConfig().getMaxPlayers(),
-                server.getConnections().getCount(), desc));
+                displayOnline, sampleJson, desc));
     }
 
     @Override
@@ -60,7 +67,7 @@ public class PacketStatusResponse implements PacketOut {
         return getClass().getSimpleName();
     }
 
-    private String getResponseJson(String version, int protocol, int maxPlayers, int online, String description) {
-        return String.format(TEMPLATE, version, protocol, maxPlayers, online, description);
+    private String getResponseJson(String version, int protocol, int maxPlayers, int online, String sample, String description) {
+        return String.format(TEMPLATE, version, protocol, maxPlayers, online, sample, description);
     }
 }
