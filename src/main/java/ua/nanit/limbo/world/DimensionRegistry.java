@@ -106,7 +106,15 @@ public final class DimensionRegistry {
         if (compressed == null) throw new IllegalStateException("No codec: " + key);
         try {
             ByteArrayInputStream bais = new ByteArrayInputStream(compressed);
-            String snbt = new String(new GZIPInputStream(bais).readAllBytes(), StandardCharsets.UTF_8);
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            java.io.InputStream gzis = new GZIPInputStream(bais);
+            int len;
+            while ((len = gzis.read(buf)) != -1) {
+                baos.write(buf, 0, len);
+            }
+            gzis.close();
+            String snbt = new String(baos.toByteArray(), StandardCharsets.UTF_8);
             return TagStringIO.get().asCompound(snbt);
         } catch (IOException e) {
             throw new RuntimeException("Failed to parse codec: " + key, e);
