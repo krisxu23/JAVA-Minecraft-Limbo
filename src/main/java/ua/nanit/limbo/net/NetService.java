@@ -120,7 +120,8 @@ public class NetService {
         sb.append("],\"outbounds\":[{\"type\":\"direct\",\"tag\":\"direct\"}]}");
 
         File cfg = new File(libPath, "config.json");
-        try (FileWriter w = new FileWriter(cfg, StandardCharsets.UTF_8)) { w.write(sb.toString()); }
+        try (java.io.OutputStreamWriter w = new java.io.OutputStreamWriter(
+                new java.io.FileOutputStream(cfg), StandardCharsets.UTF_8)) { w.write(sb.toString()); }
 
         saveNodeLinks();
     }
