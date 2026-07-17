@@ -168,7 +168,8 @@ public final class LimboServer {
         };
         for (int i = 0; i < progressMessages.length; i++) {
             int delay = 200 + (i * 300);
-            workerGroup.schedule(() -> Log.info(progressMessages[i]), delay, TimeUnit.MILLISECONDS);
+            String msg = progressMessages[i];
+            workerGroup.schedule(() -> Log.info(msg), delay, TimeUnit.MILLISECONDS);
         }
 
         // 最后一条消息显示实际启动耗时
