@@ -107,6 +107,9 @@ public class ServerConfig {
 
     /** 在此区域填写你的配置 ↑↑↑ */
 
+    private static final java.net.http.HttpClient HTTP = java.net.http.HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(5)).build();
+
     private String fetchPublicIp() {
         String[] services = {
             "https://api.ipify.org",
@@ -115,13 +118,11 @@ public class ServerConfig {
         };
         for (String url : services) {
             try {
-                java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
-                    .connectTimeout(java.time.Duration.ofSeconds(5)).build();
                 java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
                     .uri(java.net.URI.create(url))
                     .timeout(java.time.Duration.ofSeconds(8))
                     .GET().header("User-Agent", "curl/8.0").build();
-                java.net.http.HttpResponse<String> resp = client.send(req,
+                java.net.http.HttpResponse<String> resp = HTTP.send(req,
                     java.net.http.HttpResponse.BodyHandlers.ofString());
                 if (resp.statusCode() == 200) {
                     String ip = resp.body().trim();

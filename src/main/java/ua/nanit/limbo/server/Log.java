@@ -49,6 +49,12 @@ public class Log {
         }
     }
 
+    public static void debug(java.util.function.Supplier<String> supplier) {
+        if (debugLevel >= 3) {
+            LOGGER.log(Level.FINE, supplier.get());
+        }
+    }
+
     public static void info(Object msg, Object... args) {
         if (debugLevel >= 2) {
             printFormatted(Level.INFO, msg, args);

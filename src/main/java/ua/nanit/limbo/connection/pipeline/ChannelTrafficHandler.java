@@ -6,8 +6,6 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.jetbrains.annotations.NotNull;
 import ua.nanit.limbo.server.Log;
 
-import java.util.Arrays;
-
 public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
 
     private final int maxPacketSize;
@@ -49,45 +47,44 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
     }
 
     private static class PacketBucket {
-        private static final double NANOSECONDS_TO_MILLISECONDS = 1.0e-6;
-        private static final int MILLISECONDS_TO_SECONDS = 1000;
+        private static final long NANOSECONDS_TO_MILLISECONDS = 1_000_000L;
 
-        private final double intervalTime;
-        private final double intervalResolution;
+        private final long intervalTimeNanos;
+        private final long intervalResolutionNanos;
         private final int[] data;
         private int newestData;
-        private double lastBucketTime;
+        private long lastBucketTimeNanos;
         private int sum;
 
         public PacketBucket(final double intervalTime, final int totalBuckets) {
-            this.intervalTime = intervalTime;
-            this.intervalResolution = intervalTime / totalBuckets;
+            this.intervalTimeNanos = (long) (intervalTime * NANOSECONDS_TO_MILLISECONDS);
+            this.intervalResolutionNanos = this.intervalTimeNanos / totalBuckets;
             this.data = new int[totalBuckets];
         }
 
         public void incrementPackets(final int packets) {
-            double timeMs = System.nanoTime() * NANOSECONDS_TO_MILLISECONDS;
-            double timeDelta = timeMs - this.lastBucketTime;
+            long timeNs = System.nanoTime();
+            long timeDelta = timeNs - this.lastBucketTimeNanos;
 
-            if (timeDelta < 0.0) {
-                timeDelta = 0.0;
+            if (timeDelta < 0L) {
+                timeDelta = 0L;
             }
 
-            if (timeDelta < this.intervalResolution) {
+            if (timeDelta < this.intervalResolutionNanos) {
                 this.data[this.newestData] += packets;
                 this.sum += packets;
                 return;
             }
 
-            int bucketsToMove = (int)(timeDelta / this.intervalResolution);
-            double nextBucketTime = this.lastBucketTime + bucketsToMove * this.intervalResolution;
+            int bucketsToMove = (int)(timeDelta / this.intervalResolutionNanos);
+            long nextBucketTime = this.lastBucketTimeNanos + bucketsToMove * this.intervalResolutionNanos;
 
             if (bucketsToMove >= this.data.length) {
-                Arrays.fill(this.data, 0);
+                java.util.Arrays.fill(this.data, 0);
                 this.data[0] = packets;
                 this.sum = packets;
                 this.newestData = 0;
-                this.lastBucketTime = timeMs;
+                this.lastBucketTimeNanos = timeNs;
                 return;
             }
 
@@ -101,11 +98,12 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
             this.sum += packets - this.data[newestDataIndex];
             this.data[newestDataIndex] = packets;
             this.newestData = newestDataIndex;
-            this.lastBucketTime = nextBucketTime;
+            this.lastBucketTimeNanos = nextBucketTime;
         }
 
         public double getCurrentPacketRate() {
-            return this.sum / (this.intervalTime / MILLISECONDS_TO_SECONDS);
+            long intervalMs = this.intervalTimeNanos / NANOSECONDS_TO_MILLISECONDS;
+            return (double) this.sum / (intervalMs / 1000.0);
         }
     }
 }

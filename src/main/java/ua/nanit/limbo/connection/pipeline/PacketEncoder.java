@@ -45,7 +45,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet> {
         int packetId;
 
         if (packet instanceof PacketSnapshot) {
-            packetId = registry.getPacketId(((PacketSnapshot)packet).getWrappedPacket().getClass());
+            packetId = ((PacketSnapshot) packet).getPacketId(registry);
         } else {
             packetId = registry.getPacketId(packet.getClass());
         }
@@ -61,7 +61,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet> {
             packet.encode(msg, version);
 
             if (Log.isDebug()) {
-                Log.debug("Sending %s[0x%s] packet (%d bytes)", packet.toString(), Integer.toHexString(packetId), msg.readableBytes());
+                Log.debug(() -> String.format("Sending %s[0x%s] packet (%d bytes)", packet.toString(), Integer.toHexString(packetId), msg.readableBytes()));
             }
         } catch (Exception e) {
             Log.error("Cannot encode packet 0x%s: %s", Integer.toHexString(packetId), e.getMessage());

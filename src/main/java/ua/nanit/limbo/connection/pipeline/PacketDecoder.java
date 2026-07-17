@@ -47,7 +47,7 @@ public class PacketDecoder extends MessageToMessageDecoder<ByteBuf> {
         Packet packet = mappings.getPacket(packetId);
 
         if (packet != null) {
-            Log.debug("Received packet %s[0x%s] (%d bytes)", packet.toString(), Integer.toHexString(packetId), msg.readableBytes());
+            Log.debug(() -> String.format("Received packet %s[0x%s] (%d bytes)", packet.toString(), Integer.toHexString(packetId), msg.readableBytes()));
             try {
                 packet.decode(msg, version);
                 ctx.fireChannelRead(packet);

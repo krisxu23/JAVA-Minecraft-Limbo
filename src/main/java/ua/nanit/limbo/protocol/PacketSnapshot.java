@@ -1,5 +1,6 @@
 package ua.nanit.limbo.protocol;
 
+import ua.nanit.limbo.protocol.registry.State;
 import ua.nanit.limbo.protocol.registry.Version;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,6 +13,7 @@ public class PacketSnapshot implements PacketOut {
 
     private final PacketOut packet;
     private final ConcurrentHashMap<Version, byte[]> cache = new ConcurrentHashMap<>();
+    private volatile int cachedPacketId = -1;
 
     public PacketSnapshot(PacketOut packet) {
         this.packet = packet;
@@ -19,6 +21,13 @@ public class PacketSnapshot implements PacketOut {
 
     public PacketOut getWrappedPacket() {
         return packet;
+    }
+
+    public int getPacketId(State.PacketRegistry registry) {
+        if (cachedPacketId == -1) {
+            cachedPacketId = registry.getPacketId(packet.getClass());
+        }
+        return cachedPacketId;
     }
 
     @Override
