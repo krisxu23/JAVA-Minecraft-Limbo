@@ -66,39 +66,44 @@ public class ServerConfig {
         return (val != null && !val.isEmpty()) ? val : "";
     }
 
+    // ======================== 环境变量定义 ========================
+    // 所有配置通过 Pterodactyl 面板 Variables 设置，代码不留默认值。
+    // 变量名含义见下方注释，未设置的字段程序会自动跳过/禁用。
+    // ==============================================================
     private ServerConfig() {
-        this.uuid = env("UUID");
-        this.domain = env("DOMAIN");
-        this.port = env("PORT");
-        this.remarksPrefix = env("NAME");
-        this.wsPort = env("ARGO_PORT");
-        this.realityPort = env("REALITY_PORT");
-        this.hy2Port = env("HY2_PORT");
-        this.tuicPort = env("TUIC_PORT");
-        this.socks5Port = env("S5_PORT");
-        this.anytlsPort = env("ANYTLS_PORT");
-        this.cfIp = env("CFIP");
-        this.cfPort = env("CFPORT");
-        this.argoDomain = env("ARGO_DOMAIN");
-        this.argoToken = env("ARGO_AUTH");
-        this.disableArgo = "true".equalsIgnoreCase(env("DISABLE_ARGO"));
-        this.webPort = env("WEB_PORT");
-        this.webTitle = env("WEB_TITLE");
-        this.webDesc = env("WEB_DESC");
-        this.subPort = env("SUB_PORT");
-        this.subPath = env("SUB_PATH");
-        this.nezhaServer = env("NEZHA_SERVER");
-        this.nezhaPort = env("NEZHA_PORT");
-        this.nezhaKey = env("NEZHA_KEY");
-        this.tgChatId = env("CHAT_ID");
-        this.tgBotToken = env("BOT_TOKEN");
-        this.autoAccess = "true".equalsIgnoreCase(env("AUTO_ACCESS"));
-        this.projectUrl = env("PROJECT_URL");
-        this.uploadUrl = env("UPLOAD_URL");
-        this.ytWarpOut = "true".equalsIgnoreCase(env("YT_WARPOUT"));
-        this.sbVersion = env("SB_VERSION");
-        this.sbDownloadUrl = env("SB_DOWNLOAD_URL");
-        this.cfDownloadUrl = env("CF_DOWNLOAD_URL");
+        this.uuid = env("UUID");                     // 节点使用的 UUID，必填，建议自行生成一个唯一的 UUID
+        this.domain = env("DOMAIN");                 // 服务器域名或 IP，留空自动获取公网 IP
+        this.port = env("PORT");                     // Minecraft 服务器端口
+        this.remarksPrefix = env("NAME");            // 节点名称前缀
+        this.wsPort = env("ARGO_PORT");              // 隧道端口，使用固定隧道 token 时需与 Cloudflare 设置一致
+        this.realityPort = env("REALITY_PORT");      // VLESS+Reality 端口（TCP），默认不启用
+        this.hy2Port = env("HY2_PORT");              // Hysteria2 端口（UDP），默认不启用
+        this.tuicPort = env("TUIC_PORT");            // TUIC 端口（UDP），默认不启用
+        this.socks5Port = env("S5_PORT");            // SOCKS5 端口（TCP），默认不启用
+        this.anytlsPort = env("ANYTLS_PORT");        // AnyTLS 端口（TCP），默认不启用
+        this.cfIp = env("CFIP");                     // Argo 节点的优选域名或优选 IP
+        this.cfPort = env("CFPORT");                 // Argo 节点的优选端口
+        this.argoDomain = env("ARGO_DOMAIN");        // 固定隧道域名，留空使用临时隧道
+        this.argoToken = env("ARGO_AUTH");           // 固定隧道 token 或 json，留空使用临时隧道
+        this.disableArgo = "true".equalsIgnoreCase(env("DISABLE_ARGO")); // true=禁用 Argo 隧道
+        this.webPort = env("WEB_PORT");              // HTTP 伪装博客端口，默认不启用
+        this.webTitle = env("WEB_TITLE");            // 伪装博客标题
+        this.webDesc = env("WEB_DESC");              // 伪装博客描述
+        this.subPort = env("SUB_PORT");              // 订阅端口
+        this.subPath = env("SUB_PATH");              // 获取订阅的路径
+        this.nezhaServer = env("NEZHA_SERVER");      // 哪吒面板域名，v1 格式: nezha.xxx.com:8008
+        this.nezhaPort = env("NEZHA_PORT");          // 哪吒 v0 的 agent 端口，v1 请留空
+        this.nezhaKey = env("NEZHA_KEY");            // 哪吒 v1 的 NZ_CLIENT_SECRET
+        this.tgChatId = env("CHAT_ID");              // Telegram 机器人 Chat ID
+        this.tgBotToken = env("BOT_TOKEN");          // Telegram 机器人 Token
+        this.autoAccess = "true".equalsIgnoreCase(env("AUTO_ACCESS")); // true=开启自动保活
+        this.projectUrl = env("PROJECT_URL");        // 项目地址，开启自动保活或上传订阅时需填写
+        this.uploadUrl = env("UPLOAD_URL");          // 节点/订阅自动上传地址
+        this.ytWarpOut = "true".equalsIgnoreCase(env("YT_WARPOUT"));   // true=YouTube 走 WARP 出站
+        this.sbVersion = env("SB_VERSION");          // sing-box 版本
+        this.sbDownloadUrl = env("SB_DOWNLOAD_URL"); // sing-box 下载地址，留空自动
+        this.cfDownloadUrl = env("CF_DOWNLOAD_URL"); // cloudflared 下载地址，留空自动
+        // ==============================================================
 
         if (domain.isEmpty()) domain = fetchPublicIp();
         if (tuicPassword == null || tuicPassword.isEmpty()) tuicPassword = uuid;
