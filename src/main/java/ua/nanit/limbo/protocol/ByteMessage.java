@@ -215,36 +215,22 @@ public class ByteMessage {
         }
     }
 
+    private static final long NANOS_PER_MILLI = 1_000_000L;
+
     public void writeNamelessCompoundTag(BinaryTag binaryTag) {
         try (ByteBufOutputStream stream = new ByteBufOutputStream(buf)) {
             stream.writeByte(binaryTag.type().id());
-            NbtWriter writer = NBT_WRITERS.get(binaryTag.getClass());
-            if (writer != null) {
-                writer.write(binaryTag, stream);
-            }
+            writeBinaryTag(binaryTag, stream);
         }
         catch (IOException e) {
             throw new EncoderException("Cannot write NBT tag");
         }
     }
 
-    @FunctionalInterface
-    private interface NbtWriter {
-        void write(BinaryTag tag, ByteBufOutputStream stream) throws IOException;
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void writeBinaryTag(BinaryTag tag, ByteBufOutputStream stream) throws IOException {
+        ((BinaryTagType) tag.type()).write(tag, stream);
     }
-
-    private static final Map<Class<?>, NbtWriter> NBT_WRITERS = Map.ofEntries(
-            Map.entry(CompoundBinaryTag.class, (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(ByteBinaryTag.class,    (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(ShortBinaryTag.class,   (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(IntBinaryTag.class,     (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(LongBinaryTag.class,    (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(FloatBinaryTag.class,   (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(DoubleBinaryTag.class,  (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(StringBinaryTag.class,  (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(ListBinaryTag.class,    (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
-            Map.entry(EndBinaryTag.class,     (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s))
-    );
 
     public void writeNbtMessage(NbtMessage nbtMessage, Version version) {
         if (version.moreOrEqual(Version.V1_20_3)) {

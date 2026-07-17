@@ -55,7 +55,7 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
         private int sum;
 
         public PacketBucket(final double intervalTime, final int totalBuckets) {
-            this.intervalTimeNanos = (long) (intervalTime * NANOSECONDS_TO_MILLISECONDS);
+            this.intervalTimeNanos = (long) (intervalTime * 1_000_000L);
             this.intervalResolutionNanos = this.intervalTimeNanos / totalBuckets;
             this.data = new int[totalBuckets];
         }
