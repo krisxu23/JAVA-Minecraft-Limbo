@@ -42,7 +42,8 @@ public class VarIntFrameDecoder extends ByteToMessageDecoder {
             int readVarInt = reader.getReadVarInt();
             int bytesRead = reader.getBytesRead();
             if (readVarInt < 0) {
-                Log.error("[VarIntFrameDecoder] Bad data length");
+                Log.error("[VarIntFrameDecoder] Bad data length, skipping %d bytes", bytesRead);
+                in.skipBytes(bytesRead);
             } else if (readVarInt == 0) {
                 in.readerIndex(varIntEnd + 1);
             } else {
@@ -54,7 +55,8 @@ public class VarIntFrameDecoder extends ByteToMessageDecoder {
                 }
             }
         } else if (reader.getResult() == VarIntByteDecoder.DecodeResult.TOO_BIG) {
-            Log.error("[VarIntFrameDecoder] Too big data");
+            Log.error("[VarIntFrameDecoder] Too big data, closing channel");
+            ctx.close();
         }
     }
 }

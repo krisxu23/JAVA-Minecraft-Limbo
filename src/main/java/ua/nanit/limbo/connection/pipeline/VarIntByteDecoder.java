@@ -28,7 +28,8 @@ public class VarIntByteDecoder implements ByteProcessor {
     @Override
     public boolean process(byte k) {
         readVarInt |= (k & 0x7F) << bytesRead++ * 7;
-        if (bytesRead > 3) {
+        // VarInt can be up to 5 bytes for full 32-bit range
+        if (bytesRead > 5) {
             result = DecodeResult.TOO_BIG;
             return false;
         }

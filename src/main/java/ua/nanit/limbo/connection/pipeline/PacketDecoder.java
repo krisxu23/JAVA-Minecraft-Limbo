@@ -50,6 +50,7 @@ public class PacketDecoder extends MessageToMessageDecoder<ByteBuf> {
             Log.debug("Received packet %s[0x%s] (%d bytes)", packet.toString(), Integer.toHexString(packetId), msg.readableBytes());
             try {
                 packet.decode(msg, version);
+                ctx.fireChannelRead(packet);
             } catch (Exception e) {
                 if (Log.isDebug()) {
                     Log.warning("Cannot decode packet 0x%s", e, Integer.toHexString(packetId));
@@ -57,8 +58,6 @@ public class PacketDecoder extends MessageToMessageDecoder<ByteBuf> {
                     Log.warning("Cannot decode packet 0x%s: %s", Integer.toHexString(packetId), e.getMessage());
                 }
             }
-
-            ctx.fireChannelRead(packet);
         } else {
             Log.debug("Undefined incoming packet: 0x" + Integer.toHexString(packetId));
         }

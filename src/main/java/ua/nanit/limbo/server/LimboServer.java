@@ -56,8 +56,8 @@ public final class LimboServer {
     private CommandManager commandManager;
     private PlayerSimulator playerSimulator;
 
-    // MOTD 动态伪装池（看起来像真实的小型 Minecraft 服务器）
-    private static final String[] MOTD_POOL = {
+    // MOTD 动态伪装池（预处理颜色代码，避免每次切换时重复解析）
+    private static final String[] MOTD_POOL_RAW = {
         "{\"text\": \"&aSurvival &7| &bSkyBlock &7| &eBedWars\"}",
         "{\"text\": \"&7Welcome to &aMyNetwork\"}",
         "{\"text\": \"&e&lMyServer &7| &a1.21.x &7| &dJoin Now!\"}",
@@ -67,6 +67,13 @@ public final class LimboServer {
         "{\"text\": \"&d&lDiamond &a&lNetwork &7| &bplay.example.net\"}",
         "{\"text\": \"&7[&a1.21.x&7] &eSurvival &7| &bSkyBlock\"}",
     };
+    // 预处理后的 MOTD 缓存
+    private static final String[] MOTD_POOL = new String[MOTD_POOL_RAW.length];
+    static {
+        for (int i = 0; i < MOTD_POOL_RAW.length; i++) {
+            MOTD_POOL[i] = Colors.of(MOTD_POOL_RAW[i]);
+        }
+    }
 
     // 启动时随机选一个固定的 maxPlayers（真实服务器不会跳变）
     private static final int[] MAX_PLAYERS_OPTIONS = {50, 80, 100, 120, 150, 200, 250, 300, 500};
@@ -102,26 +109,10 @@ public final class LimboServer {
 
         Log.setLevel(config.getDebugLevel());
         Log.info("Starting server...");
-        Log.info("Preparing level \"world\"");
-        Log.info("Preparing start region for dimension minecraft:overworld");
-        Log.info("Preparing spawn area: 1%");
-        Log.info("Preparing spawn area: 2%");
-        Thread.sleep(2000);
-        Log.info("Preparing spawn area: 5%");
-        Log.info("Preparing spawn area: 8%");
-        Thread.sleep(2000);
-        Log.info("Preparing spawn area: 15%");
-        Log.info("Preparing spawn area: 20%");
-        Thread.sleep(3000);
-        Log.info("Preparing spawn area: 35%");
-        Log.info("Preparing spawn area: 60%");
-        Log.info("Preparing spawn area: 80%");
-        Thread.sleep(3000);
-        Log.info("Preparing spawn area: 99%");
-        Log.info("Preparing spawn area: 100%");
-        Log.info("Running delayed init tasks");
-        double elapsed = (System.currentTimeMillis() - startTime) / 1000.0;
-        Log.info(String.format("Done (%.3fs)! For help, type \"help\"", elapsed));
+
+        // 异步模拟启动进度，不阻塞 Netty 引导
+        simulateStartupProgress();
+
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
 
         packetHandler = new PacketHandler(this);
@@ -142,15 +133,50 @@ public final class LimboServer {
         playerSimulator = new PlayerSimulator();
         playerSimulator.start();
 
-        Runtime.getRuntime().addShutdownHook(new Thread(this::stop, "NanoLimbo shutdown thread"));
+        // 使用 NanoLimbo.main() 中注册的 ShutdownHook，避免重复注册
+        // 此处不再额外注册
 
         Log.info("Server started on %s", config.getAddress());
 
         commandManager = new CommandManager();
         commandManager.registerAll(this);
         commandManager.start();
+    }
 
-        System.gc();
+    /**
+     * 异步模拟 Minecraft 服务器启动进度条，不阻塞主线程。
+     * 通过 workerGroup 的 EventLoop 定时输出模拟日志。
+     */
+    private void simulateStartupProgress() {
+        long startTime = System.currentTimeMillis();
+        Log.info("Preparing level \"world\"");
+        Log.info("Preparing start region for dimension minecraft:overworld");
+
+        String[] progressMessages = {
+            "Preparing spawn area: 1%",
+            "Preparing spawn area: 2%",
+            "Preparing spawn area: 5%",
+            "Preparing spawn area: 8%",
+            "Preparing spawn area: 15%",
+            "Preparing spawn area: 20%",
+            "Preparing spawn area: 35%",
+            "Preparing spawn area: 60%",
+            "Preparing spawn area: 80%",
+            "Preparing spawn area: 99%",
+            "Preparing spawn area: 100%",
+            "Running delayed init tasks"
+        };
+        for (int i = 0; i < progressMessages.length; i++) {
+            int delay = 200 + (i * 300);
+            workerGroup.schedule(() -> Log.info(progressMessages[i]), delay, TimeUnit.MILLISECONDS);
+        }
+
+        // 最后一条消息显示实际启动耗时
+        int finalDelay = 200 + progressMessages.length * 300;
+        workerGroup.schedule(() -> {
+            double elapsed = (System.currentTimeMillis() - startTime) / 1000.0;
+            Log.info(String.format("Done (%.3fs)! For help, type \"help\"", elapsed));
+        }, finalDelay, TimeUnit.MILLISECONDS);
     }
 
     private void startBootstrap() {
@@ -206,7 +232,7 @@ public final class LimboServer {
 
     private void rotateMotd() {
         String motd = MOTD_POOL[ThreadLocalRandom.current().nextInt(MOTD_POOL.length)];
-        config.getPingData().setDescription(Colors.of(motd));
+        config.getPingData().setDescription(motd);
     }
 
     private void stop() {
