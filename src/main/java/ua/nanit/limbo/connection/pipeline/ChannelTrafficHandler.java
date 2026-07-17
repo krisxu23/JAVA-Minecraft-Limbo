@@ -32,7 +32,7 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
             if (packetBucket != null) {
                 packetBucket.incrementPackets(1);
                 if (packetBucket.getCurrentPacketRate() > maxPacketRate) {
-                    closeConnection(ctx, "Closed %s due to many packets sent (%d in the last %.1f seconds)", ctx.channel().remoteAddress(), packetBucket.sum, (packetBucket.intervalTime / 1000.0));
+                    closeConnection(ctx, "Closed %s due to many packets sent (%d in the last %.1f seconds)", ctx.channel().remoteAddress(), packetBucket.sum, (packetBucket.intervalTimeNanos / 1_000_000_000.0));
                     return;
                 }
             }
@@ -47,8 +47,6 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
     }
 
     private static class PacketBucket {
-        private static final long NANOSECONDS_TO_MILLISECONDS = 1_000_000L;
-
         private final long intervalTimeNanos;
         private final long intervalResolutionNanos;
         private final int[] data;
@@ -102,8 +100,7 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
         }
 
         public double getCurrentPacketRate() {
-            long intervalMs = this.intervalTimeNanos / NANOSECONDS_TO_MILLISECONDS;
-            return (double) this.sum / (intervalMs / 1000.0);
+            return (double) this.sum / (this.intervalTimeNanos / 1_000_000_000.0);
         }
     }
 }

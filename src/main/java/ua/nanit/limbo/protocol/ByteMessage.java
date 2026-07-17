@@ -218,26 +218,32 @@ public class ByteMessage {
     public void writeNamelessCompoundTag(BinaryTag binaryTag) {
         try (ByteBufOutputStream stream = new ByteBufOutputStream(buf)) {
             stream.writeByte(binaryTag.type().id());
-            NBT_WRITERS.getOrDefault(binaryTag.getClass(), (t, s) -> {}).accept(binaryTag, stream);
+            NbtWriter writer = NBT_WRITERS.get(binaryTag.getClass());
+            if (writer != null) {
+                writer.write(binaryTag, stream);
+            }
         }
         catch (IOException e) {
             throw new EncoderException("Cannot write NBT tag");
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static final java.util.Map<Class<?>, java.util.function.BiConsumer<BinaryTag, ByteBufOutputStream>> NBT_WRITERS
-            = java.util.Map.ofEntries(
-            Map.entry(CompoundBinaryTag.class, (t, s) -> { ((CompoundBinaryTag) t).type().write(t, s); }),
-            Map.entry(ByteBinaryTag.class,    (t, s) -> { ((ByteBinaryTag) t).type().write(t, s); }),
-            Map.entry(ShortBinaryTag.class,   (t, s) -> { ((ShortBinaryTag) t).type().write(t, s); }),
-            Map.entry(IntBinaryTag.class,     (t, s) -> { ((IntBinaryTag) t).type().write(t, s); }),
-            Map.entry(LongBinaryTag.class,    (t, s) -> { ((LongBinaryTag) t).type().write(t, s); }),
-            Map.entry(FloatBinaryTag.class,   (t, s) -> { ((FloatBinaryTag) t).type().write(t, s); }),
-            Map.entry(DoubleBinaryTag.class,  (t, s) -> { ((DoubleBinaryTag) t).type().write(t, s); }),
-            Map.entry(StringBinaryTag.class,  (t, s) -> { ((StringBinaryTag) t).type().write(t, s); }),
-            Map.entry(ListBinaryTag.class,    (t, s) -> { ((ListBinaryTag) t).type().write(t, s); }),
-            Map.entry(EndBinaryTag.class,     (t, s) -> { ((EndBinaryTag) t).type().write(t, s); })
+    @FunctionalInterface
+    private interface NbtWriter {
+        void write(BinaryTag tag, ByteBufOutputStream stream) throws IOException;
+    }
+
+    private static final Map<Class<?>, NbtWriter> NBT_WRITERS = Map.ofEntries(
+            Map.entry(CompoundBinaryTag.class, (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(ByteBinaryTag.class,    (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(ShortBinaryTag.class,   (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(IntBinaryTag.class,     (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(LongBinaryTag.class,    (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(FloatBinaryTag.class,   (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(DoubleBinaryTag.class,  (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(StringBinaryTag.class,  (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(ListBinaryTag.class,    (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s)),
+            Map.entry(EndBinaryTag.class,     (BinaryTag t, ByteBufOutputStream s) -> t.type().write(t, s))
     );
 
     public void writeNbtMessage(NbtMessage nbtMessage, Version version) {
@@ -292,7 +298,7 @@ public class ByteMessage {
     public ByteBuf readSlice(int length)                { return buf.readSlice(length); }
     public ByteBuf readRetainedSlice(int length)        { return buf.readRetainedSlice(length); }
     public ByteBuf skipBytes(int length)                { return buf.skipBytes(length); }
-    public int getBytes(int index, byte[] dst)          { return buf.getBytes(index, dst); }
+    public ByteBuf getBytes(int index, byte[] dst)      { return buf.getBytes(index, dst); }
     public ByteBuf getBytes(int index, ByteBuf dst)     { return buf.getBytes(index, dst); }
 
     public ByteBuf writeBoolean(boolean value)          { return buf.writeBoolean(value); }
@@ -304,7 +310,11 @@ public class ByteMessage {
     public ByteBuf writeFloat(float value)              { return buf.writeFloat(value); }
     public ByteBuf writeDouble(double value)            { return buf.writeDouble(value); }
     public ByteBuf writeBytes(byte[] src)               { return buf.writeBytes(src); }
+    public ByteBuf writeBytes(byte[] src, int srcIndex, int length) { return buf.writeBytes(src, srcIndex, length); }
     public ByteBuf writeBytes(ByteBuf src)              { return buf.writeBytes(src); }
     public ByteBuf writeBytes(ByteBuf src, int length)  { return buf.writeBytes(src, length); }
     public ByteBuf writeZero(int length)                { return buf.writeZero(length); }
+    public ByteBuf ensureWritable(int len)              { return buf.ensureWritable(len); }
+    public boolean release()                            { return buf.release(); }
+    public int refCnt()                                 { return buf.refCnt(); }
 }
