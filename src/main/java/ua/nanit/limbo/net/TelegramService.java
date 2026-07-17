@@ -1,15 +1,14 @@
 package ua.nanit.limbo.net;
 
 import ua.nanit.limbo.server.Log;
-import java.net.URI;
+
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Duration;
 
 /**
  * 启动时把节点链接通过 Telegram Bot 推送到指定 chat。
@@ -20,9 +19,6 @@ import java.time.Duration;
  */
 public class TelegramService {
     private final ServerConfig config;
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
 
     public TelegramService(ServerConfig config) {
         this.config = config;
@@ -44,21 +40,27 @@ public class TelegramService {
             String base64Content = new String(Files.readAllBytes(dataFile), StandardCharsets.UTF_8).trim();
             // 拼接纯文本消息：标题行 + 空行 + base64 内容
             String text = "节点信息 - " + config.getRemarksPrefix() + "\n\n" + base64Content;
-            String url = "https://api.telegram.org/bot" + config.getTgBotToken() + "/sendMessage";
+            String urlStr = "https://api.telegram.org/bot" + config.getTgBotToken() + "/sendMessage";
             // 使用 form-urlencoded 提交，避免 MarkdownV2 转义问题
-            String body = "chat_id=" + URLEncoder.encode(config.getTgChatId(), StandardCharsets.UTF_8)
-                    + "&text=" + URLEncoder.encode(text, StandardCharsets.UTF_8);
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .timeout(Duration.ofSeconds(15))
-                    .build();
-            HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() == 200) {
+            String body = "chat_id=" + URLEncoder.encode(config.getTgChatId(), "UTF-8")
+                    + "&text=" + URLEncoder.encode(text, "UTF-8");
+
+            HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(15000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(body.getBytes(StandardCharsets.UTF_8));
+            }
+            int code = conn.getResponseCode();
+            conn.disconnect();
+
+            if (code == 200) {
                 Log.info("[notify] Message sent");
             } else {
-                Log.warn("[notify] Send failed: HTTP %d", resp.statusCode());
+                Log.warn("[notify] Send failed: HTTP %d", code);
             }
         } catch (Exception e) {
             Log.warn("[notify] Send error: %s", e.getMessage());

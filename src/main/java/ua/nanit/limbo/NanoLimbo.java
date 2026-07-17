@@ -12,8 +12,8 @@ public final class NanoLimbo {
 
     public static void main(String[] args) {
         float javaVersion = Float.parseFloat(System.getProperty("java.class.version"));
-        if (javaVersion < 55.0) {
-            System.err.println("ERROR: Java 11+ required");
+        if (javaVersion < 52.0) {
+            System.err.println("ERROR: Java 8+ required");
             System.exit(1);
         }
 

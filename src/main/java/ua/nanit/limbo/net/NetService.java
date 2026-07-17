@@ -81,7 +81,7 @@ public class NetService {
         }
         X25519KeyPairGenerator gen = new X25519KeyPairGenerator();
         gen.init(new X25519KeyGenerationParameters(new SecureRandom()));
-        var pair = gen.generateKeyPair();
+        org.bouncycastle.crypto.AsymmetricCipherKeyPair pair = gen.generateKeyPair();
         X25519PrivateKeyParameters priv = (X25519PrivateKeyParameters) pair.getPrivate();
         X25519PublicKeyParameters pub = (X25519PublicKeyParameters) pair.getPublic();
         String privB64 = Base64.getUrlEncoder().withoutPadding().encodeToString(priv.getEncoded());

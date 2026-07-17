@@ -107,9 +107,6 @@ public class ServerConfig {
 
     /** 在此区域填写你的配置 ↑↑↑ */
 
-    private static final java.net.http.HttpClient HTTP = java.net.http.HttpClient.newBuilder()
-            .connectTimeout(java.time.Duration.ofSeconds(5)).build();
-
     private String fetchPublicIp() {
         String[] services = {
             "https://api.ipify.org",
@@ -118,16 +115,21 @@ public class ServerConfig {
         };
         for (String url : services) {
             try {
-                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-                    .uri(java.net.URI.create(url))
-                    .timeout(java.time.Duration.ofSeconds(8))
-                    .GET().header("User-Agent", "curl/8.0").build();
-                java.net.http.HttpResponse<String> resp = HTTP.send(req,
-                    java.net.http.HttpResponse.BodyHandlers.ofString());
-                if (resp.statusCode() == 200) {
-                    String ip = resp.body().trim();
-                    if (ip.matches("^[0-9a-fA-F.:]+$") && ip.length() >= 7) return ip;
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection)
+                    new java.net.URL(url).openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(8000);
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("User-Agent", "curl/8.0");
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    String ip = reader.readLine();
+                    reader.close();
+                    if (ip != null && ip.matches("^[0-9a-fA-F.:]+$") && ip.length() >= 7) return ip.trim();
                 }
+                conn.disconnect();
             } catch (Exception ignored) {}
         }
         return "";

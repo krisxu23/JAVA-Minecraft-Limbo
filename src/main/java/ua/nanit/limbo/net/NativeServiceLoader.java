@@ -98,7 +98,7 @@ public class NativeServiceLoader {
         if (code != 200) {
             throw new IOException("HTTP " + code);
         }
-        try (var in = conn.getInputStream()) {
+        try (java.io.InputStream in = conn.getInputStream()) {
             Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
         }
         Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
