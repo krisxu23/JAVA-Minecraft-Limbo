@@ -81,6 +81,9 @@ public class Log {
         String text;
         if (args.length == 0) {
             text = msg.toString();
+        } else if (args.length == 1 && args[0] instanceof Throwable && !msg.toString().contains("%")) {
+            // 当 msg 没有格式占位符但第二个参数是异常时，直接拼接异常信息
+            text = msg.toString() + args[0];
         } else {
             text = String.format(msg.toString(), args);
         }

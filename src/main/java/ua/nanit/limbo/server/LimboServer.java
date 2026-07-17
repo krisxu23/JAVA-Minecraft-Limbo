@@ -110,9 +110,6 @@ public final class LimboServer {
         Log.setLevel(config.getDebugLevel());
         Log.info("Starting server...");
 
-        // 异步模拟启动进度，不阻塞 Netty 引导
-        simulateStartupProgress();
-
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
 
         packetHandler = new PacketHandler(this);
@@ -123,6 +120,9 @@ public final class LimboServer {
         PacketSnapshots.initPackets(this);
 
         startBootstrap();
+
+        // 异步模拟启动进度（必须在 startBootstrap 之后，workerGroup 就绪了）
+        simulateStartupProgress();
 
         keepAliveTask = workerGroup.scheduleAtFixedRate(this::broadcastKeepAlive, 0L, 5L, TimeUnit.SECONDS);
 
