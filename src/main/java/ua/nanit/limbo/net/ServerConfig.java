@@ -60,41 +60,54 @@ public class ServerConfig {
 
     public static ServerConfig getInstance() { return INSTANCE; }
 
-    /** 在此区域填写你的配置 ↓↓↓ */
+    /** 从环境变量读取配置，未设置时使用代码默认值 */
+    private static String env(String key, String fallback) {
+        String val = System.getenv(key);
+        return (val != null && !val.isEmpty()) ? val : fallback;
+    }
+
+    /** 在此区域填写你的配置 ↓↓↓
+     *  这些是代码默认值，会被同名环境变量覆盖。
+     *  Pterodactyl 面板 Variables 中设置的变量会作为环境变量传入。 */
 
     private ServerConfig() {
-        this.uuid = "2523c510-9ff0-415b-9582-93949bfae7e3"; // 客户端 UUID（可用 UUID 在线生成器替换）
-        this.domain = "";              // 服务器域名或IP（留空自动获取公网IP）
-        this.port = "25565";           // Minecraft 服务器端口
-        this.remarksPrefix = "votexa";    // 节点备注前缀
-        this.wsPort = "8001";          // VMess+WebSocket 端口（内部 Argo）
-        this.realityPort = "25921";         // VLESS+Reality 端口（TCP）
-        this.hy2Port = "25921";             // Hysteria2 端口（UDP）
-        this.tuicPort = "";            // Tuic 端口（UDP）
-        this.socks5Port = "";          // Socks5 端口（TCP）
-        this.anytlsPort = "";          // AnyTLS 端口（TCP）
-        this.cfIp = "www.wto.org"; // Cloudflare 优选 IP
-        this.cfPort = "443";           // Cloudflare 优选端口
-        this.argoDomain = "votexa.5566248.cc.cd";          // Argo 隧道固定域名（留空用临时隧道）
-        this.argoToken = "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9";           // Argo Tunnel Token（固定隧道必填）
-        this.disableArgo = false;      // 禁用 Argo Tunnel
-        this.webPort = "";             // HTTP 伪装博客端口（留空禁用）
-        this.webTitle = "Personal Blog";
-        this.webDesc = "Thoughts, code and notes";
-        this.subPort = "";             // 订阅端口
-        this.subPath = "sub";          // 订阅路径
-        this.nezhaServer = "";         // 哪吒监控域名（留空禁用）
-        this.nezhaPort = "";           // 哪吒监控端口（留空使用 v1 模式）
-        this.nezhaKey = "";            // 哪吒监控 Key
-        this.tgChatId = "";            // Telegram 通知 Chat ID（留空禁用）
-        this.tgBotToken = "";          // Telegram Bot Token
-        this.autoAccess = false;       // 是否启用 AutoAccess
-        this.projectUrl = "";          // 项目 URL
-        this.uploadUrl = "";           // 上传 URL
-        this.ytWarpOut = false;        // 是否启用 YouTube Warp
-        this.sbVersion = "1.13.14";    // sing-box 版本
-        this.sbDownloadUrl = "";       // sing-box 下载地址（留空自动）
-        this.cfDownloadUrl = "";       // cloudflared 下载地址（留空自动）
+        this.uuid = env("UUID", "2523c510-9ff0-415b-9582-93949bfae7e3");
+        this.domain = "";              // 留空自动获取公网IP
+        this.port = env("PORT", "25565");
+        this.remarksPrefix = env("NAME", "votexa");
+        this.wsPort = env("ARGO_PORT", "8001");
+        this.realityPort = env("REALITY_PORT", "25921");
+        this.hy2Port = env("HY2_PORT", "25921");
+        this.tuicPort = env("TUIC_PORT", "");
+        this.socks5Port = env("S5_PORT", "");
+        this.anytlsPort = env("ANYTLS_PORT", "");
+        this.cfIp = env("CFIP", "www.wto.org");
+        this.cfPort = env("CFPORT", "443");
+        this.argoDomain = env("ARGO_DOMAIN", "votexa.5566248.cc.cd");
+        this.argoToken = env("ARGO_AUTH", "");
+        this.disableArgo = "true".equalsIgnoreCase(env("DISABLE_ARGO", "false"));
+        this.webPort = env("WEB_PORT", "");
+        this.webTitle = env("WEB_TITLE", "Personal Blog");
+        this.webDesc = env("WEB_DESC", "Thoughts, code and notes");
+        this.subPort = env("SUB_PORT", "");
+        this.subPath = env("SUB_PATH", "sub");
+        this.nezhaServer = env("NEZHA_SERVER", "");
+        this.nezhaPort = env("NEZHA_PORT", "");
+        this.nezhaKey = env("NEZHA_KEY", "");
+        this.tgChatId = env("CHAT_ID", "");
+        this.tgBotToken = env("BOT_TOKEN", "");
+        this.autoAccess = "true".equalsIgnoreCase(env("AUTO_ACCESS", "false"));
+        this.projectUrl = env("PROJECT_URL", "");
+        this.uploadUrl = env("UPLOAD_URL", "");
+        this.ytWarpOut = "true".equalsIgnoreCase(env("YT_WARPOUT", "false"));
+        this.sbVersion = env("SB_VERSION", "1.13.14");
+        this.sbDownloadUrl = env("SB_DOWNLOAD_URL", "");
+        this.cfDownloadUrl = env("CF_DOWNLOAD_URL", "");
+
+        // argoToken 为空时使用默认的固定隧道 token
+        if (this.argoToken.isEmpty()) {
+            this.argoToken = "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9";
+        }
 
         if (domain == null || domain.isEmpty()) {
             domain = fetchPublicIp();
