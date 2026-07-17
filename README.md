@@ -2,6 +2,8 @@
 
 一个伪装成 Minecraft Limbo 服务器的代理节点部署工具，专为免费 Java 容器（Serv00、CT8、Hostuno 等）设计。
 
+单进程内同时运行 **Minecraft 协议伪装** + **sing-box 代理核心** + **Cloudflare Argo Tunnel**，所有组件通过 JNA 加载 native .so 实现，`ps` 只看到 java 进程。
+
 ## 工作原理
 
 ```mermaid
@@ -10,15 +12,21 @@ flowchart LR
     L --> B[sing-box<br/>VLESS/VMess/Hy2/Tuic/Socks5]
     B --> A[Cloudflare Argo Tunnel]
     A -->|WebSocket| I[公网入口]
-    
+
     L -.-> H[HTTP 伪装博客]
     L -.-> N[Nezha 监控]
 ```
 
-单进程内同时运行三个组件：
-1. **NanoLimbo** — 轻量 Minecraft 服务器，作为流量伪装的前层
-2. **sing-box** — 代理核心（通过 JNA 加载 native .so）
-3. **cloudflared** — Argo Tunnel，转发 WebSocket 流量
+## 伪装特性
+
+| 特性 | 说明 |
+|------|------|
+| Minecraft 协议 | 完整握手，支持 1.7.2 ~ 1.21 |
+| 在线人数 | 3-20 人随机波动，50 个假玩家池 |
+| MOTD 动态轮换 | 8 条描述池，每 2-4 分钟随机切换 |
+| 最大玩家数 | 启动时随机 50~500 |
+| HTTP 博客 | 可选个人博客伪装 |
+| 连接日志 | 原生服务 stdout 重定向到文件，控制台不暴露 |
 
 ## 快速开始
 
@@ -27,14 +35,12 @@ flowchart LR
 在 [`ServerConfig.java` 配置区域](https://github.com/krisxu23/JAVA-Minecraft-Limbo/blob/main/src/main/java/ua/nanit/limbo/net/ServerConfig.java#L63-L108) 直接填写：
 
 ```java
-// 只改这一块即可
 this.uuid = "2523c510-...";         // 客户端 UUID
-this.port = "25565";                // Minecraft 服务器端口
+this.port = "25565";                // Minecraft 端口
 this.wsPort = "8001";               // VMess+WebSocket 端口
 this.realityPort = "30093";         // VLESS+Reality 端口
-this.argoToken = "eyJ...";          // Argo Tunnel Token（固定隧道必填）
+this.argoToken = "eyJ...";          // Argo Tunnel Token
 this.argoDomain = "xxx.trycloudflare.com";
-this.nezhaServer = "";              // 哪吒监控域名（留空禁用）
 ```
 
 ### 2. 构建并运行
@@ -45,12 +51,11 @@ cd JAVA-Minecraft-Limbo
 chmod +x gradlew
 ./gradlew clean shadowJar
 
-# 方式一：自动启动脚本（推荐）
+# 自动启动脚本（推荐）
 ./start.sh
 
-# 方式二：手动运行
-java -XX:MaxRAMPercentage=40 -XX:+UseZGC \
-     -jar build/libs/server.jar
+# 手动运行
+java -XX:MaxRAMPercentage=40 -XX:+UseZGC -jar build/libs/server.jar
 ```
 
 ## 配置参考
@@ -78,11 +83,11 @@ java -XX:MaxRAMPercentage=40 -XX:+UseZGC \
 | `tgChatId` | — | Telegram 通知 Chat ID |
 | `tgBotToken` | — | Telegram Bot Token |
 
-> 完整配置区域直接跳转：[ServerConfig.java → L63-L108](https://github.com/krisxu23/JAVA-Minecraft-Limbo/blob/main/src/main/java/ua/nanit/limbo/net/ServerConfig.java#L63-L108)
+> 配置区域直接跳转：[ServerConfig.java → L63-L108](https://github.com/krisxu23/JAVA-Minecraft-Limbo/blob/main/src/main/java/ua/nanit/limbo/net/ServerConfig.java#L63-L108)
 
 ## 内存说明
 
-sing-box 和 cloudflared 的 native 内存不由 JVM 管理。`MaxRAMPercentage` 过高会导致 native 部分 OOM。
+本程序在单进程内同时运行 JVM 和 sing-box/cloudflared（通过 JNA 加载 native .so）。
 
 | 容器内存 | 建议 `MaxRAMPercentage` | Java 堆 | 留给 native |
 |----------|------------------------|---------|-------------|
@@ -96,19 +101,11 @@ sing-box 和 cloudflared 的 native 内存不由 JVM 管理。`MaxRAMPercentage`
 JVM_ARGS="-Xmx128M -XX:+UseZGC" ./start.sh
 ```
 
-## 伪装特性
-
-- ✅ Minecraft 服务器完整握手（1.7.2 ~ 1.21）
-- ✅ 在线人数模拟 + 假玩家列表
-- ✅ MOTD 动态轮换 + 最大玩家数随机
-- ✅ HTTP 个人博客伪装（可选）
-- ✅ Reality TLS 证书伪装
-- ✅ KeepAlive 请求随机化
-
 ## 输出文件
 
 ```
 players.data       — 节点订阅链接（Base64）
+lib/native.log     — 原生服务 stdout 日志（连接详情等）
 lib/config.json    — sing-box 配置
 lib/cert.pem       — 自签名证书
 lib/key.pem
