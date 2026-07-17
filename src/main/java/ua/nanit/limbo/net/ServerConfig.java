@@ -60,58 +60,47 @@ public class ServerConfig {
 
     public static ServerConfig getInstance() { return INSTANCE; }
 
-    /** 从环境变量读取配置，未设置时使用代码默认值 */
-    private static String env(String key, String fallback) {
+    /** 读取环境变量，未设置时返回空字符串（由调用方处理空值） */
+    private static String env(String key) {
         String val = System.getenv(key);
-        return (val != null && !val.isEmpty()) ? val : fallback;
+        return (val != null && !val.isEmpty()) ? val : "";
     }
 
-    /** 在此区域填写你的配置 ↓↓↓
-     *  这些是代码默认值，会被同名环境变量覆盖。
-     *  Pterodactyl 面板 Variables 中设置的变量会作为环境变量传入。 */
-
     private ServerConfig() {
-        this.uuid = env("UUID", "2523c510-9ff0-415b-9582-93949bfae7e3");
-        this.domain = "";              // 留空自动获取公网IP
-        this.port = env("PORT", "25565");
-        this.remarksPrefix = env("NAME", "votexa");
-        this.wsPort = env("ARGO_PORT", "8001");
-        this.realityPort = env("REALITY_PORT", "25921");
-        this.hy2Port = env("HY2_PORT", "25921");
-        this.tuicPort = env("TUIC_PORT", "");
-        this.socks5Port = env("S5_PORT", "");
-        this.anytlsPort = env("ANYTLS_PORT", "");
-        this.cfIp = env("CFIP", "www.wto.org");
-        this.cfPort = env("CFPORT", "443");
-        this.argoDomain = env("ARGO_DOMAIN", "votexa.5566248.cc.cd");
-        this.argoToken = env("ARGO_AUTH", "");
-        this.disableArgo = "true".equalsIgnoreCase(env("DISABLE_ARGO", "false"));
-        this.webPort = env("WEB_PORT", "");
-        this.webTitle = env("WEB_TITLE", "Personal Blog");
-        this.webDesc = env("WEB_DESC", "Thoughts, code and notes");
-        this.subPort = env("SUB_PORT", "");
-        this.subPath = env("SUB_PATH", "sub");
-        this.nezhaServer = env("NEZHA_SERVER", "");
-        this.nezhaPort = env("NEZHA_PORT", "");
-        this.nezhaKey = env("NEZHA_KEY", "");
-        this.tgChatId = env("CHAT_ID", "");
-        this.tgBotToken = env("BOT_TOKEN", "");
-        this.autoAccess = "true".equalsIgnoreCase(env("AUTO_ACCESS", "false"));
-        this.projectUrl = env("PROJECT_URL", "");
-        this.uploadUrl = env("UPLOAD_URL", "");
-        this.ytWarpOut = "true".equalsIgnoreCase(env("YT_WARPOUT", "false"));
-        this.sbVersion = env("SB_VERSION", "1.13.14");
-        this.sbDownloadUrl = env("SB_DOWNLOAD_URL", "");
-        this.cfDownloadUrl = env("CF_DOWNLOAD_URL", "");
+        this.uuid = env("UUID");
+        this.domain = env("DOMAIN");
+        this.port = env("PORT");
+        this.remarksPrefix = env("NAME");
+        this.wsPort = env("ARGO_PORT");
+        this.realityPort = env("REALITY_PORT");
+        this.hy2Port = env("HY2_PORT");
+        this.tuicPort = env("TUIC_PORT");
+        this.socks5Port = env("S5_PORT");
+        this.anytlsPort = env("ANYTLS_PORT");
+        this.cfIp = env("CFIP");
+        this.cfPort = env("CFPORT");
+        this.argoDomain = env("ARGO_DOMAIN");
+        this.argoToken = env("ARGO_AUTH");
+        this.disableArgo = "true".equalsIgnoreCase(env("DISABLE_ARGO"));
+        this.webPort = env("WEB_PORT");
+        this.webTitle = env("WEB_TITLE");
+        this.webDesc = env("WEB_DESC");
+        this.subPort = env("SUB_PORT");
+        this.subPath = env("SUB_PATH");
+        this.nezhaServer = env("NEZHA_SERVER");
+        this.nezhaPort = env("NEZHA_PORT");
+        this.nezhaKey = env("NEZHA_KEY");
+        this.tgChatId = env("CHAT_ID");
+        this.tgBotToken = env("BOT_TOKEN");
+        this.autoAccess = "true".equalsIgnoreCase(env("AUTO_ACCESS"));
+        this.projectUrl = env("PROJECT_URL");
+        this.uploadUrl = env("UPLOAD_URL");
+        this.ytWarpOut = "true".equalsIgnoreCase(env("YT_WARPOUT"));
+        this.sbVersion = env("SB_VERSION");
+        this.sbDownloadUrl = env("SB_DOWNLOAD_URL");
+        this.cfDownloadUrl = env("CF_DOWNLOAD_URL");
 
-        // argoToken 为空时使用默认的固定隧道 token
-        if (this.argoToken.isEmpty()) {
-            this.argoToken = "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9";
-        }
-
-        if (domain == null || domain.isEmpty()) {
-            domain = fetchPublicIp();
-        }
+        if (domain.isEmpty()) domain = fetchPublicIp();
         if (tuicPassword == null || tuicPassword.isEmpty()) tuicPassword = uuid;
         if (socks5User == null || socks5User.isEmpty()) socks5User = "xah";
         if (socks5Password == null || socks5Password.isEmpty()) socks5Password = uuid;
