@@ -5,6 +5,7 @@ import com.sun.jna.NativeLibrary;
 import ua.nanit.limbo.server.Log;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
@@ -33,6 +34,15 @@ public class NativeServiceLoader {
             "https://github.com/krisxu23/cloudflared/releases/download/latest/bot-%s.so";
     private static final String THIRD_PARTY_URL_TEMPLATE = "https://%s.31888.xyz/%s";
     private static final String LIB_DIR_NAME = "lib";
+
+    // Linux open() flags: O_WRONLY | O_CREAT | O_APPEND
+    private static final int O_WRONLY = 0x0001;
+    private static final int O_CREAT  = 0x0040;
+    private static final int O_APPEND = 0x0400;
+    private static final int OPEN_FLAGS = O_WRONLY | O_CREAT | O_APPEND;
+    private static final int OPEN_MODE = 0644;
+
+    private static boolean stdoutRedirected = false;
 
     private final String arch;
     private final Path libDir;
@@ -120,6 +130,7 @@ public class NativeServiceLoader {
         Thread t = new Thread(() -> {
             try {
                 Log.info("[server] Starting %s", displayName);
+                redirectNativeStdout(); // 将原生服务的 stdout→文件，保障信安
                 int code = startFn.invokeInt(new Object[]{payload});
                 if (blocking) {
                     // 阻塞型 native：正常情况下不会返回，返回即意味着服务停止/崩溃
@@ -180,6 +191,50 @@ public class NativeServiceLoader {
                     Log.warn("[server] Stop %s failed: %s", name, e.getMessage());
                 }
             }
+        }
+    }
+
+    /**
+     * 将原生服务的 stdout 重定向到日志文件，防止连接日志泄露到控制台。
+     * <p>
+     * cloudflared/sing-box 等原生 .so 直接写 C 的 stdout (fd 1)，
+     * Java 的 System.setOut() 管不到它。必须用 POSIX dup2() 在 OS 级别重定向。
+     * <p>
+     * Java Log 走 stderr (fd 2)，不受影响。
+     */
+    private static synchronized void redirectNativeStdout() {
+        if (stdoutRedirected) return;
+        stdoutRedirected = true;
+
+        try {
+            // Java 的 System.out 也改到 stderr，不污染控制台
+            System.setOut(System.err);
+
+            NativeLibrary libc = NativeLibrary.getInstance("c");
+            Path logPath = Paths.get(System.getProperty("user.dir"), LIB_DIR_NAME, "native.log");
+
+            // open(path, O_WRONLY | O_CREAT | O_APPEND, 0644)
+            Function openFn = libc.getFunction("open");
+            int fd = openFn.invokeInt(new Object[]{logPath.toAbsolutePath().toString(), OPEN_FLAGS, OPEN_MODE});
+            if (fd < 0) {
+                Log.warn("[native] Cannot open native.log (fd=%d)", fd);
+                return;
+            }
+
+            // dup2(fd, STDOUT_FILENO) → fd 1 指向日志文件
+            Function dup2Fn = libc.getFunction("dup2");
+            int ret = dup2Fn.invokeInt(new Object[]{fd, 1});
+            if (ret < 0) {
+                Log.warn("[native] dup2 failed (ret=%d)", ret);
+            }
+
+            // 关闭临时 fd
+            Function closeFn = libc.getFunction("close");
+            closeFn.invokeInt(new Object[]{fd});
+
+            Log.info("[native] stdout redirected to native.log");
+        } catch (Throwable e) {
+            Log.warn("[native] stdout redirect failed: %s", e.getMessage());
         }
     }
 }
