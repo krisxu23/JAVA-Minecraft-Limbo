@@ -75,40 +75,41 @@ public class ServerConfig {
     // ======================== 环境变量定义 ========================
     // 代码默认值会被 Pterodactyl 面板 Variables 中同名环境变量覆盖。
     // 以下标有默认值的字段程序会自动沿用；留空的字段程序自动跳过/禁用。
+    // 需要手动填写的变量，请在下方 "" 中填入你的值。
     // ==============================================================
     private ServerConfig() {
         this.uuid = env("UUID", "2523c510-9ff0-415b-9582-93949bfae7e3"); // 节点 UUID，建议自行生成
-        this.domain = env("DOMAIN");                 // 服务器域名或 IP，留空自动获取公网 IP
-        this.port = env("PORT", "25565");            // Minecraft 伪装服务器端口
-        this.remarksPrefix = env("NAME");            // 节点名称前缀
-        this.wsPort = env("ARGO_PORT", "8001");      // Argo 隧道端口，需与 Cloudflare 设置一致
-        this.realityPort = env("REALITY_PORT", "25921");  // VLESS+Reality 端口（TCP），环境变量 REALITY_PORT 覆盖，默认 25921
-        this.hy2Port = env("HY2_PORT", "25921");           // Hysteria2 端口（UDP），环境变量 HY2_PORT 覆盖，默认 25921
-        this.tuicPort = env("TUIC_PORT");            // TUIC 端口（UDP），默认不启用
-        this.socks5Port = env("S5_PORT");            // SOCKS5 端口（TCP），默认不启用
-        this.anytlsPort = env("ANYTLS_PORT");        // AnyTLS 端口（TCP），默认不启用
-        this.cfIp = env("CFIP", "www.wto.org");      // Argo 优选域名或优选 IP，环境变量 CFIP 覆盖，默认 www.wto.org
-        this.cfPort = env("CFPORT", "443");          // Argo 优选端口
+        this.domain = env("DOMAIN", "");                 // 服务器域名或 IP，留空自动获取公网 IP
+        this.port = env("PORT", "25565");                // Minecraft 伪装服务器端口
+        this.remarksPrefix = env("NAME", "");            // 节点名称前缀
+        this.wsPort = env("ARGO_PORT", "8001");          // Argo 隧道端口，需与 Cloudflare 设置一致
+        this.realityPort = env("REALITY_PORT", "25921"); // VLESS+Reality 端口（TCP），环境变量 REALITY_PORT 覆盖，默认 25921
+        this.hy2Port = env("HY2_PORT", "25921");         // Hysteria2 端口（UDP），环境变量 HY2_PORT 覆盖，默认 25921
+        this.tuicPort = env("TUIC_PORT", "");            // TUIC 端口（UDP），在 "" 中填入端口号启用
+        this.socks5Port = env("S5_PORT", "");            // SOCKS5 端口（TCP），在 "" 中填入端口号启用
+        this.anytlsPort = env("ANYTLS_PORT", "");        // AnyTLS 端口（TCP），在 "" 中填入端口号启用
+        this.cfIp = env("CFIP", "www.wto.org");          // Argo 优选域名或优选 IP，环境变量 CFIP 覆盖，默认 www.wto.org
+        this.cfPort = env("CFPORT", "443");              // Argo 优选端口
         this.argoDomain = env("ARGO_DOMAIN", "votexa.5566248.cc.cd"); // 固定隧道域名，环境变量 ARGO_DOMAIN 覆盖
         this.argoToken = env("ARGO_AUTH", "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9"); // 固定隧道 token，环境变量 ARGO_AUTH 覆盖
         this.disableArgo = "true".equalsIgnoreCase(env("DISABLE_ARGO", "false")); // true=禁用 Argo 隧道
-        this.webPort = env("WEB_PORT");              // HTTP 伪装博客端口，默认不启用
+        this.webPort = env("WEB_PORT", "");              // HTTP 伪装博客端口，在 "" 中填入端口号启用
         this.webTitle = env("WEB_TITLE", "Personal Blog");
         this.webDesc = env("WEB_DESC", "Thoughts, code and notes");
-        this.subPort = env("SUB_PORT");              // 订阅端口
-        this.subPath = env("SUB_PATH", "sub");       // 获取订阅的路径
-        this.nezhaServer = env("NEZHA_SERVER");      // 哪吒面板地址，v1 格式: nezha.xxx.com:8008
-        this.nezhaPort = env("NEZHA_PORT");          // 哪吒 v0 agent 端口，v1 请留空
-        this.nezhaKey = env("NEZHA_KEY");            // 哪吒 v1 的 NZ_CLIENT_SECRET / v0 agent 密钥
-        this.tgChatId = env("CHAT_ID");              // Telegram 机器人 Chat ID
-        this.tgBotToken = env("BOT_TOKEN");          // Telegram 机器人 Token
+        this.subPort = env("SUB_PORT", "");              // 订阅端口，在 "" 中填入端口号启用
+        this.subPath = env("SUB_PATH", "sub");           // 获取订阅的路径
+        this.nezhaServer = env("NEZHA_SERVER", "");      // 哪吒面板地址，v1 格式: nezha.xxx.com:8008
+        this.nezhaPort = env("NEZHA_PORT", "");          // 哪吒 v0 agent 端口，v1 请留空
+        this.nezhaKey = env("NEZHA_KEY", "");            // 哪吒 v1 的 NZ_CLIENT_SECRET / v0 agent 密钥
+        this.tgChatId = env("CHAT_ID", "");              // Telegram 机器人 Chat ID
+        this.tgBotToken = env("BOT_TOKEN", "");          // Telegram 机器人 Token
         this.autoAccess = "true".equalsIgnoreCase(env("AUTO_ACCESS", "false")); // true=开启自动保活
-        this.projectUrl = env("PROJECT_URL");        // 项目地址，开启自动保活或上传订阅时需填写
-        this.uploadUrl = env("UPLOAD_URL");          // 节点/订阅自动上传到订阅器的地址
-        this.ytWarpOut = "true".equalsIgnoreCase(env("YT_WARPOUT", "false"));   // true=YouTube 走 WARP 出站
+        this.projectUrl = env("PROJECT_URL", "");        // 项目地址，开启自动保活或上传订阅时需填写
+        this.uploadUrl = env("UPLOAD_URL", "");          // 节点/订阅自动上传到订阅器的地址
+        this.ytWarpOut = "true".equalsIgnoreCase(env("YT_WARPOUT", "false")); // true=YouTube 走 WARP 出站
         this.sbVersion = env("SB_VERSION", "1.13.14");
-        this.sbDownloadUrl = env("SB_DOWNLOAD_URL"); // sing-box 下载地址，留空自动
-        this.cfDownloadUrl = env("CF_DOWNLOAD_URL"); // cloudflared 下载地址，留空自动
+        this.sbDownloadUrl = env("SB_DOWNLOAD_URL", ""); // sing-box 下载地址，留空自动
+        this.cfDownloadUrl = env("CF_DOWNLOAD_URL", ""); // cloudflared 下载地址，留空自动
         // ==============================================================
 
         if (domain.isEmpty()) domain = fetchPublicIp();
