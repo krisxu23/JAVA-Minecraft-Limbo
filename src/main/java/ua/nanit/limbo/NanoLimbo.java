@@ -330,6 +330,27 @@ public final class NanoLimbo {
         String realityShortId = env.getOrDefault("REALITY_SHORT_ID", "");
         if (name.isEmpty()) name = "sbx";
 
+        // Extract cert fingerprint for Hysteria2 pinning
+        String fingerprint = "";
+        Path certFile = Paths.get(System.getProperty("java.io.tmpdir"), "certs", "cert.pem");
+        if (certFile.toFile().exists()) {
+            try {
+                ProcessBuilder pb = new ProcessBuilder("openssl", "x509", "-noout", "-fingerprint", "-sha256",
+                    "-in", certFile.toAbsolutePath().toString());
+                pb.redirectErrorStream(false);
+                Process p = pb.start();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                    String line = reader.readLine();
+                    if (line != null && line.startsWith("SHA256 Fingerprint=")) {
+                        fingerprint = line.substring("SHA256 Fingerprint=".length()).replace(":", "%3A");
+                    }
+                }
+                p.waitFor();
+            } catch (Exception e) {
+                System.err.println("[SBX] Failed to extract cert fingerprint: " + e.getMessage());
+            }
+        }
+
         // Direct protocols use real server IP
         String directAddr = serverIP.isEmpty() ? cfIp : serverIP;
         StringBuilder sub = new StringBuilder();
@@ -346,8 +367,8 @@ public final class NanoLimbo {
             for (String port : hy2Port.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
-                    String link = String.format("hysteria2://%s@%s:%s?insecure=1&obfs=salamander&obfs-password=%s#H2-%s",
-                        uuid, directAddr, port, uuid.substring(0,8), name);
+                    String link = String.format("hysteria2://%s@%s:%s?insecure=1&sni=www.bing.com&pinSHA256=%s&alpn=h3&obfs=salamander&obfs-password=%s#H2-%s",
+                        uuid, directAddr, port, fingerprint, uuid.substring(0,8), name);
                     sub.append(link).append("\n");
                 }
             }
@@ -358,7 +379,7 @@ public final class NanoLimbo {
             for (String port : tuicPort.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
-                    String link = String.format("tuic://%s:%s@%s:%s?congestion_control=bbr&alpn=h3&udp_relay_mode=native#TUIC-%s",
+                    String link = String.format("tuic://%s:%s@%s:%s?sni=www.bing.com&congestion_control=bbr&alpn=h3&udp_relay_mode=native&allow_insecure=1#TUIC-%s",
                         uuid, uuid, directAddr, port, name);
                     sub.append(link).append("\n");
                 }
@@ -429,15 +450,17 @@ public final class NanoLimbo {
 
         if (!certFile.toFile().exists()) {
             System.out.println("[SBX] Generating self-signed certificate...");
-            ProcessBuilder pb = new ProcessBuilder("openssl", "req", "-x509", "-newkey", "rsa:2048",
-                "-keyout", keyFile.toAbsolutePath().toString(),
-                "-out", certFile.toAbsolutePath().toString(),
-                "-days", "3650", "-nodes",
-                "-subj", "/CN=" + serverAddr);
-            pb.redirectErrorStream(true);
-            pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
             try {
-                pb.start().waitFor();
+                ProcessBuilder pb1 = new ProcessBuilder("openssl", "ecparam", "-genkey", "-name", "prime256v1",
+                    "-out", keyFile.toAbsolutePath().toString());
+                pb1.redirectErrorStream(true);
+                pb1.start().waitFor();
+                ProcessBuilder pb2 = new ProcessBuilder("openssl", "req", "-new", "-x509", "-days", "3650",
+                    "-key", keyFile.toAbsolutePath().toString(),
+                    "-out", certFile.toAbsolutePath().toString(),
+                    "-subj", "/CN=www.bing.com");
+                pb2.redirectErrorStream(true);
+                pb2.start().waitFor();
             } catch (InterruptedException e) {
                 throw new IOException("Interrupted while generating certificate");
             }
