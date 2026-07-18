@@ -5,6 +5,7 @@ import java.net.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.Base64;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -97,7 +98,7 @@ public final class NanoLimbo {
     // ==================== Service Startup ====================
 
     private static void startServices() throws Exception {
-        Map<String, String> envVars = new HashMap<>();
+        Map<String, String> envVars = new ConcurrentHashMap<>();
         loadEnvVars(envVars);
 
         // Always detect real server IP for direct protocols (Reality/Hysteria2/TUIC/SOCKS5)
@@ -158,14 +159,15 @@ public final class NanoLimbo {
 
         String privKey = null;
         String pubKey = null;
-        BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            System.out.println("[SBX] " + line);
-            if (line.startsWith("PrivateKey")) {
-                privKey = line.substring(line.indexOf(':') + 1).trim();
-            } else if (line.startsWith("PublicKey")) {
-                pubKey = line.substring(line.indexOf(':') + 1).trim();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println("[SBX] " + line);
+                if (line.startsWith("PrivateKey")) {
+                    privKey = line.substring(line.indexOf(':') + 1).trim();
+                } else if (line.startsWith("PublicKey")) {
+                    pubKey = line.substring(line.indexOf(':') + 1).trim();
+                }
             }
         }
         proc.waitFor();
@@ -573,7 +575,7 @@ public final class NanoLimbo {
         envVars.put("NEZHA_KEY", "");
         envVars.put("ARGO_PORT", "8001");
         envVars.put("ARGO_DOMAIN", "votexa.5566248.cc.cd");
-        envVars.put("ARGO_AUTH", "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9");
+        envVars.put("ARGO_AUTH", "");
         envVars.put("S5_PORT", "");
         envVars.put("HY2_PORT", "25921");
         envVars.put("TUIC_PORT", "");
