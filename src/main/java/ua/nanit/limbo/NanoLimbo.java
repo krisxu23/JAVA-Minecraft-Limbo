@@ -98,11 +98,14 @@ public final class NanoLimbo {
         Map<String, String> envVars = new HashMap<>();
         loadEnvVars(envVars);
 
+        // Always detect real server IP for direct protocols (Reality/Hysteria2/TUIC/SOCKS5)
+        String realIP = getPublicIP();
+        envVars.put("SERVER_IP", realIP);
+        System.out.println("[SBX] Detected server IP: " + realIP);
+
         String argoDomain = envVars.get("ARGO_DOMAIN");
         if (argoDomain == null || argoDomain.trim().isEmpty()) {
-            argoDomain = getPublicIP();
-            envVars.put("ARGO_DOMAIN", argoDomain);
-            System.out.println("[SBX] Auto-detected server IP: " + argoDomain);
+            envVars.put("ARGO_DOMAIN", realIP);
         }
 
         // Auto-generate Reality keys if not provided
@@ -316,18 +319,19 @@ public final class NanoLimbo {
     private static void generateSubscription(Map<String, String> env) throws IOException {
         String uuid = env.getOrDefault("UUID", "fe7431cb-ab1b-4205-a14c-d056f821b383");
         String argoDomain = env.getOrDefault("ARGO_DOMAIN", "");
+        String serverIP = env.getOrDefault("SERVER_IP", "");
         String hy2Port = env.getOrDefault("HY2_PORT", "");
         String tuicPort = env.getOrDefault("TUIC_PORT", "");
         String realityPort = env.getOrDefault("REALITY_PORT", "");
         String s5Port = env.getOrDefault("S5_PORT", "");
-        String cfIp = env.getOrDefault("CFIP", "www.wto.org");
+        String cfIp = env.getOrDefault("CFIP", "spring.io");
         String name = env.getOrDefault("NAME", "sbx");
         String realityPublicKey = env.getOrDefault("REALITY_PUBLIC_KEY", "");
         String realityShortId = env.getOrDefault("REALITY_SHORT_ID", "");
-        String cfPort = env.getOrDefault("CFPORT", "443");
         if (name.isEmpty()) name = "sbx";
 
-        String serverAddr = argoDomain.isEmpty() ? cfIp : argoDomain;
+        // Direct protocols use real server IP
+        String directAddr = serverIP.isEmpty() ? cfIp : serverIP;
         StringBuilder sub = new StringBuilder();
 
         // VLESS WS via Argo (java-xah style)
@@ -343,7 +347,7 @@ public final class NanoLimbo {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     String link = String.format("hysteria2://%s@%s:%s?insecure=1&obfs=salamander&obfs-password=%s#H2-%s",
-                        uuid, serverAddr, port, uuid.substring(0,8), name);
+                        uuid, directAddr, port, uuid.substring(0,8), name);
                     sub.append(link).append("\n");
                 }
             }
@@ -355,7 +359,7 @@ public final class NanoLimbo {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     String link = String.format("tuic://%s:%s@%s:%s?congestion_control=bbr&alpn=h3&udp_relay_mode=native#TUIC-%s",
-                        uuid, uuid, serverAddr, port, name);
+                        uuid, uuid, directAddr, port, name);
                     sub.append(link).append("\n");
                 }
             }
@@ -367,7 +371,7 @@ public final class NanoLimbo {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     String link = String.format("vless://%s@%s:%s?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.cloudflare.com&fp=chrome&pbk=%s&sid=%s&spx=%%2F&type=tcp&headerType=none#Reality-%s",
-                        uuid, serverAddr, port, realityPublicKey, realityShortId, name);
+                        uuid, directAddr, port, realityPublicKey, realityShortId, name);
                     sub.append(link).append("\n");
                 }
             }
@@ -379,7 +383,7 @@ public final class NanoLimbo {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     String link = String.format("socks5://%s@%s:%s#S5-%s",
-                        uuid, serverAddr, port, name);
+                        uuid, directAddr, port, name);
                     sub.append(link).append("\n");
                 }
             }
