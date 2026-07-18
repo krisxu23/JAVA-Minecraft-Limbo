@@ -18,7 +18,7 @@ import java.nio.file.StandardCopyOption;
  *
  * 通过 JNA 在 JVM 进程内加载 .so，避免 fork 子进程：
  *  - ps 只看到 java 进程，隐蔽性高
- *  - .so 崩溃会直接带崩 JVM → 容器停机 → 触发自动重启
+ *  - .so 崩溃会直接带崩 JVM 容器停机 触发自动重启
  *
  * .so 来源：
  *  - sing-box: https://github.com/krisxu23/sing-box/releases/download/libsingbox-latest/sbx-{arch}.so
@@ -115,13 +115,17 @@ public class NativeServiceLoader {
      * @param payload      传给 native 的 JSON 字符串
      * @param displayName  日志显示名
      * @param blocking     true=阻塞型 native（如 sing-box，返回即崩溃，触发 JVM 退出）；
-     *                     false=非阻塞型 native（如 cloudflared，返回 0=后台启动成功，不触发 JVM 退出；
-     *                     返回非 0=启动失败，触发 JVM 退出）
+     *                     false=非阻塞型 native（如 cloudflared，返回 0=后台启动成功；
+     *                     非 0=启动失败，仅日志不退出 JVM）
      * @return NativeHandle，可用于后续 stop
      */
     public NativeHandle start(String remoteName, String localName, String startSymbol, String stopSymbol,
                               String payload, String displayName, boolean blocking) throws Exception {
         Path libPath = ensureLibrary(remoteName, localName);
+
+        // 诊断：记录 .so 文件详情
+        Log.debug("[server] Loading %s: %s (%d bytes, arch=%s)",
+                  displayName, libPath, Files.size(libPath), arch);
 
         NativeLibrary library = NativeLibrary.getInstance(libPath.toAbsolutePath().toString());
         Function startFn = library.getFunction(startSymbol);
@@ -130,25 +134,29 @@ public class NativeServiceLoader {
         Thread t = new Thread(() -> {
             try {
                 Log.info("[server] Starting %s", displayName);
-                redirectNativeStdout(); // 将原生服务的 stdout→文件，保障信安
+                redirectNativeStdout(); // 将原生服务的 stdout 文件，保障信安
                 int code = startFn.invokeInt(new Object[]{payload});
                 if (blocking) {
                     // 阻塞型 native：正常情况下不会返回，返回即意味着服务停止/崩溃
                     Log.warn("[server] %s exited (code %d)", displayName, code);
                     triggerJvmExit(displayName + " exited unexpectedly (code=" + code + ")");
                 } else {
-                    // 非阻塞型 native：返回 0=后台启动成功；非 0=启动失败
+                    // 非阻塞型 native：返回 0=后台启动成功；非 0=启动失败，仅日志不退出 JVM
                     if (code == 0) {
                         Log.info("[server] %s started (background)", displayName);
                     } else {
                         Log.error("[server] %s failed to start (code %d)", displayName, code);
-                        triggerJvmExit(displayName + " failed to start (code=" + code + ")");
+                        Log.warn("[server] %s non-blocking mode, continuing without it", displayName);
                     }
                 }
             } catch (Throwable e) {
                 // UnsatisfiedLinkError / SIGSEGV 等都会到这里
                 Log.error("[server] %s error: %s", displayName, e.getMessage());
-                triggerJvmExit(displayName + " crashed: " + e.getMessage());
+                if (blocking) {
+                    triggerJvmExit(displayName + " crashed: " + e.getMessage());
+                } else {
+                    Log.warn("[server] %s crashed but continuing (non-blocking)", displayName);
+                }
             }
         }, displayName + "-thread");
         t.setDaemon(false); // 非 daemon，崩溃时 JVM 能感知
@@ -160,7 +168,7 @@ public class NativeServiceLoader {
     /**
      * 触发 JVM 退出。
      * sing-box / cloudflared 崩溃或异常退出时调用，
-     * 让整个 Java 进程退出 → 容器检测到进程挂了 → 触发自动重启。
+     * 让整个 Java 进程退出  容器检测到进程挂了  触发自动重启。
      */
     private void triggerJvmExit(String reason) {
         Log.error("[server] FATAL: %s", reason);
@@ -221,7 +229,7 @@ public class NativeServiceLoader {
                 return;
             }
 
-            // dup2(fd, STDOUT_FILENO) → fd 1 指向日志文件
+            // dup2(fd, STDOUT_FILENO)  fd 1 指向日志文件
             Function dup2Fn = libc.getFunction("dup2");
             int ret = dup2Fn.invokeInt(new Object[]{fd, 1});
             if (ret < 0) {

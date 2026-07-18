@@ -41,51 +41,69 @@ public class TunnelService {
         String argoDomain = config.getArgoDomain();
         boolean fixedTunnel = argoDomain != null && !argoDomain.isEmpty();
 
-        if (fixedTunnel) {
-            updateDataFile(argoDomain);
-            String payload = buildTokenPayload(config.getArgoToken());
-            handle = loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
-            return;
-        }
+        try {
+            // 诊断：检查 .so 文件状态
+            Path botLib = Paths.get(System.getProperty("user.dir"), "lib", "net.so");
+            if (Files.exists(botLib)) {
+                Log.debug("[server] Bridge library: %s (%d bytes)", botLib, Files.size(botLib));
+            } else {
+                Log.info("[server] Bridge library not found, will download from GitHub...");
+            }
 
-        // 临时隧道模式：native 在后台线程跑，这里启动守护线程轮询 bridge.log 提取域名
-        String payload = buildTempPayload(config.getWsPort());
-        handle = loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
+            // 诊断：记录启动模式
+            if (fixedTunnel) {
+                Log.info("[server] Bridge mode: fixed tunnel (domain=%s)", argoDomain);
+                updateDataFile(argoDomain);
+                String payload = buildTokenPayload(config.getArgoToken());
+                handle = loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
+            } else {
+                Log.info("[server] Bridge mode: temporary tunnel (wsPort=%s)", config.getWsPort());
 
-        Thread poller = new Thread(() -> {
-            long deadline = System.currentTimeMillis() + 60_000L;
-            while (System.currentTimeMillis() < deadline) {
-                try {
-                    if (Files.exists(BOOT_LOG)) {
-                        List<String> lines = Files.readAllLines(BOOT_LOG, StandardCharsets.UTF_8);
-                        for (String line : lines) {
-                            Matcher m = DOMAIN_PATTERN.matcher(line);
-                            String last = null;
-                            while (m.find()) last = m.group();
-                            if (last != null) {
-                                String domain = new URL(last).getHost();
-                                config.setArgoDomain(domain);
-                                Log.info("[server] Bridge endpoint: " + domain);
-                                updateDataFile(domain);
-                                Log.info("[server] Player data updated");
-                                return;
+                // 临时隧道模式：native 在后台线程跑，这里启动守护线程轮询 bridge.log 提取域名
+                String payload = buildTempPayload(config.getWsPort());
+                handle = loader.start("bot.so", "net.so", "StartCloudflared", "StopCloudflared", payload, "bridge", false);
+
+                Thread poller = new Thread(() -> {
+                    long deadline = System.currentTimeMillis() + 60_000L;
+                    while (System.currentTimeMillis() < deadline) {
+                        try {
+                            if (Files.exists(BOOT_LOG)) {
+                                List<String> lines = Files.readAllLines(BOOT_LOG, StandardCharsets.UTF_8);
+                                for (String line : lines) {
+                                    Matcher m = DOMAIN_PATTERN.matcher(line);
+                                    String last = null;
+                                    while (m.find()) last = m.group();
+                                    if (last != null) {
+                                        String domain = new URL(last).getHost();
+                                        config.setArgoDomain(domain);
+                                        Log.info("[server] Bridge endpoint: " + domain);
+                                        updateDataFile(domain);
+                                        Log.info("[server] Player data updated");
+                                        return;
+                                    }
+                                }
                             }
+                        } catch (Exception e) {
+                            Log.error("[server] bridge.log parse error: " + e.getMessage());
+                        }
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            return;
                         }
                     }
-                } catch (Exception e) {
-                    Log.error("[server] bridge.log parse error: " + e.getMessage());
-                }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
+                    Log.error("[server] Timed out waiting for bridge endpoint");
+                }, "bridge-watcher");
+                poller.setDaemon(true);
+                poller.start();
             }
-            Log.error("[server] Timed out waiting for bridge endpoint");
-        }, "bridge-watcher");
-        poller.setDaemon(true);
-        poller.start();
+        } catch (Exception e) {
+            Log.error("[server] Bridge startup failed: %s", e.getMessage());
+            Log.warn("[server] Bridge disabled, proxy services continue without tunnel");
+            Log.warn("[server] To fix: check ARGO_DOMAIN/ARGO_AUTH env vars, or set DISABLE_ARGO=true");
+            // 不抛出异常，确保 ServiceManager 继续执行后续服务
+        }
     }
 
     private String buildTokenPayload(String token) {
@@ -149,7 +167,13 @@ public class TunnelService {
     }
 
     public void shutdown() {
-        if (handle != null) handle.stop();
+        if (handle != null) {
+            try {
+                handle.stop();
+            } catch (Throwable e) {
+                Log.warn("[tunnel] Stop error: %s", e.getMessage());
+            }
+        }
         Log.info("[tunnel] Tunnel stopped");
     }
 }
