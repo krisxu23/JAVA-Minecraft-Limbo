@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2020 Nan1t
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,7 +32,7 @@ import ua.nanit.limbo.connection.ClientChannelInitializer;
 import ua.nanit.limbo.connection.ClientConnection;
 import ua.nanit.limbo.connection.PacketHandler;
 import ua.nanit.limbo.connection.PacketSnapshots;
-import ua.nanit.limbo.net.PlayerSimulator;
+import ua.nanit.limbo.server.PlayerSimulator;
 import ua.nanit.limbo.util.Colors;
 import ua.nanit.limbo.world.DimensionRegistry;
 
@@ -56,18 +56,18 @@ public final class LimboServer {
     private CommandManager commandManager;
     private PlayerSimulator playerSimulator;
 
-    // MOTD 动态伪装池（预处理颜色代码，避免每次切换时重复解析）
+    // MOTD 鍔ㄦ€佷吉瑁呮睜锛堥澶勭悊棰滆壊浠ｇ爜锛岄伩鍏嶆瘡娆″垏鎹㈡椂閲嶅瑙ｆ瀽锛?
     private static final String[] MOTD_POOL_RAW = {
         "{\"text\": \"&aSurvival &7| &bSkyBlock &7| &eBedWars\"}",
         "{\"text\": \"&7Welcome to &aMyNetwork\"}",
         "{\"text\": \"&e&lMyServer &7| &a1.21.x &7| &dJoin Now!\"}",
         "{\"text\": \"&6play.mynet.org &7| &a1.21.4\"}",
         "{\"text\": \"&b&m------&r &aFun &b&m------\"}",
-        "{\"text\": \"&a&l★ &7Network &7| &eSurvival &7| &6Creative\"}",
+        "{\"text\": \"&a&l鈽?&7Network &7| &eSurvival &7| &6Creative\"}",
         "{\"text\": \"&d&lDiamond &a&lNetwork &7| &bplay.example.net\"}",
         "{\"text\": \"&7[&a1.21.x&7] &eSurvival &7| &bSkyBlock\"}",
     };
-    // 预处理后的 MOTD 缓存
+    // 棰勫鐞嗗悗鐨?MOTD 缂撳瓨
     private static final String[] MOTD_POOL = new String[MOTD_POOL_RAW.length];
     static {
         for (int i = 0; i < MOTD_POOL_RAW.length; i++) {
@@ -75,7 +75,7 @@ public final class LimboServer {
         }
     }
 
-    // 启动时随机选一个固定的 maxPlayers（真实服务器不会跳变）
+    // 鍚姩鏃堕殢鏈洪€変竴涓浐瀹氱殑 maxPlayers锛堢湡瀹炴湇鍔″櫒涓嶄細璺冲彉锛?
     private static final int[] MAX_PLAYERS_OPTIONS = {50, 80, 100, 120, 150, 200, 250, 300, 500};
 
     public LimboConfig getConfig() {
@@ -121,20 +121,20 @@ public final class LimboServer {
 
         startBootstrap();
 
-        // 异步模拟启动进度（必须在 startBootstrap 之后，workerGroup 就绪了）
+        // 寮傛妯℃嫙鍚姩杩涘害锛堝繀椤诲湪 startBootstrap 涔嬪悗锛寃orkerGroup 灏辩华浜嗭級
         simulateStartupProgress();
 
         keepAliveTask = workerGroup.scheduleAtFixedRate(this::broadcastKeepAlive, 0L, 5L, TimeUnit.SECONDS);
 
-        // 启动 MOTD 动态伪装
+        // 鍚姩 MOTD 鍔ㄦ€佷吉瑁?
         startMotdCamouflage();
 
-        // 启动在线人数模拟（假玩家）
+        // 鍚姩鍦ㄧ嚎浜烘暟妯℃嫙锛堝亣鐜╁锛?
         playerSimulator = new PlayerSimulator();
         playerSimulator.start();
 
-        // 使用 NanoLimbo.main() 中注册的 ShutdownHook，避免重复注册
-        // 此处不再额外注册
+        // 浣跨敤 NanoLimbo.main() 涓敞鍐岀殑 ShutdownHook锛岄伩鍏嶉噸澶嶆敞鍐?
+        // 姝ゅ涓嶅啀棰濆娉ㄥ唽
 
         Log.info("Server started on %s", config.getAddress());
 
@@ -144,8 +144,8 @@ public final class LimboServer {
     }
 
     /**
-     * 异步模拟 Minecraft 服务器启动进度条，不阻塞主线程。
-     * 通过 workerGroup 的 EventLoop 定时输出模拟日志。
+     * 寮傛妯℃嫙 Minecraft 鏈嶅姟鍣ㄥ惎鍔ㄨ繘搴︽潯锛屼笉闃诲涓荤嚎绋嬨€?
+     * 閫氳繃 workerGroup 鐨?EventLoop 瀹氭椂杈撳嚭妯℃嫙鏃ュ織銆?
      */
     private void simulateStartupProgress() {
         long startTime = System.currentTimeMillis();
@@ -172,7 +172,7 @@ public final class LimboServer {
             workerGroup.schedule(() -> Log.info(msg), delay, TimeUnit.MILLISECONDS);
         }
 
-        // 最后一条消息显示实际启动耗时
+        // 鏈€鍚庝竴鏉℃秷鎭樉绀哄疄闄呭惎鍔ㄨ€楁椂
         int finalDelay = 200 + progressMessages.length * 300;
         workerGroup.schedule(() -> {
             double elapsed = (System.currentTimeMillis() - startTime) / 1000.0;
@@ -209,19 +209,19 @@ public final class LimboServer {
     }
 
     /**
-     * MOTD 动态伪装：
-     * - 启动时随机选一个固定的 maxPlayers（真实服务器不会跳变）
-     * - 每 2-4 分钟从 motd 池中随机换一条描述（模拟管理员手动改 motd）
+     * MOTD 鍔ㄦ€佷吉瑁咃細
+     * - 鍚姩鏃堕殢鏈洪€変竴涓浐瀹氱殑 maxPlayers锛堢湡瀹炴湇鍔″櫒涓嶄細璺冲彉锛?
+     * - 姣?2-4 鍒嗛挓浠?motd 姹犱腑闅忔満鎹竴鏉℃弿杩帮紙妯℃嫙绠＄悊鍛樻墜鍔ㄦ敼 motd锛?
      */
     private void startMotdCamouflage() {
-        // 启动时随机化 maxPlayers
+        // 鍚姩鏃堕殢鏈哄寲 maxPlayers
         int randomMax = MAX_PLAYERS_OPTIONS[ThreadLocalRandom.current().nextInt(MAX_PLAYERS_OPTIONS.length)];
         config.setMaxPlayers(randomMax);
 
-        // 立即应用一个随机 motd
+        // 绔嬪嵆搴旂敤涓€涓殢鏈?motd
         rotateMotd();
 
-        // 每 2-4 分钟随机换一次 motd（间隔也随机化，避免规律性）
+        // 姣?2-4 鍒嗛挓闅忔満鎹竴娆?motd锛堥棿闅斾篃闅忔満鍖栵紝閬垮厤瑙勫緥鎬э級
         motdRotatorTask = workerGroup.scheduleAtFixedRate(() -> {
             try {
                 rotateMotd();
@@ -263,3 +263,4 @@ public final class LimboServer {
     }
 
 }
+

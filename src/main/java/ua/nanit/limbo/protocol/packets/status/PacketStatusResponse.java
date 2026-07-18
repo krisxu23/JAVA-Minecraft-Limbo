@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2020 Nan1t
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 
 package ua.nanit.limbo.protocol.packets.status;
 
-import ua.nanit.limbo.net.PlayerSimulator;
+import ua.nanit.limbo.server.PlayerSimulator;
 import ua.nanit.limbo.protocol.ByteMessage;
 import ua.nanit.limbo.protocol.PacketOut;
 import ua.nanit.limbo.protocol.registry.Version;
@@ -71,3 +71,4 @@ public class PacketStatusResponse implements PacketOut {
         return String.format(TEMPLATE, version, protocol, maxPlayers, online, sample, description);
     }
 }
+

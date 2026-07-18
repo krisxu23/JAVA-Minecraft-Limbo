@@ -1,4 +1,4 @@
-package ua.nanit.limbo.net;
+package ua.nanit.limbo.server;
 
 import ua.nanit.limbo.server.Log;
 
