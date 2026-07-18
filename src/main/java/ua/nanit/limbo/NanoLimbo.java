@@ -538,7 +538,7 @@ public final class NanoLimbo {
 
         String dnsStrategy = detectDNSStrategy();
         String config = String.format(
-            "{\"log\":{\"level\":\"info\"},\"ntp\":{\"enabled\":true,\"server\":\"time.apple.com\",\"server_port\":123,\"interval\":\"30m\"},\"dns\":{\"servers\":[{\"tag\":\"local\",\"type\":\"local\"}],\"strategy\":\"%s\"},\"inbounds\":[%s],\"outbounds\":[{\"type\":\"direct\",\"tag\":\"direct\"}]}",
+            "{\"log\":{\"level\":\"fatal\"},\"ntp\":{\"enabled\":true,\"server\":\"time.apple.com\",\"server_port\":123,\"interval\":\"30m\"},\"dns\":{\"servers\":[{\"tag\":\"local\",\"type\":\"local\"}],\"strategy\":\"%s\"},\"inbounds\":[%s],\"outbounds\":[{\"type\":\"direct\",\"tag\":\"direct\"}]}",
             dnsStrategy, inbounds.toString()
         );
 
