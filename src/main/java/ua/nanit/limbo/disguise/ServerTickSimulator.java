@@ -4,7 +4,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import ua.nanit.limbo.connection.ClientConnection;
-import ua.nanit.limbo.connection.Connections;
+import ua.nanit.limbo.server.Connections;
 import ua.nanit.limbo.protocol.packets.play.PacketKeepAlive;
 import ua.nanit.limbo.server.Log;
 
