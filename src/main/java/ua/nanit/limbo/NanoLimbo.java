@@ -356,10 +356,11 @@ public final class NanoLimbo {
         String directAddr = serverIP.isEmpty() ? cfIp : serverIP;
         StringBuilder sub = new StringBuilder();
 
-        // VLESS WS via Argo (java-xah style)
+        // VMess WS via Argo (eooce style)
         if (!argoDomain.isEmpty()) {
-            String wsLink = String.format("vless://%s@%s:443?encryption=none&security=tls&sni=%s&fp=chrome&type=ws&path=%%2F#%s-ws-argo",
-                uuid, cfIp, argoDomain, name);
+            String vmessJson = String.format("{\"v\":\"2\",\"ps\":\"%s-ws-argo\",\"add\":\"%s\",\"port\":\"443\",\"id\":\"%s\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"%s\",\"path\":\"/vmess-argo?ed=2560\",\"tls\":\"tls\",\"sni\":\"%s\",\"alpn\":\"\",\"fp\":\"firefox\",\"allowInsecure\":\"false\"}",
+                name, cfIp, uuid, argoDomain, argoDomain);
+            String wsLink = "vmess://" + Base64.getEncoder().encodeToString(vmessJson.getBytes("UTF-8"));
             sub.append(wsLink).append("\n");
         }
 
@@ -368,8 +369,8 @@ public final class NanoLimbo {
             for (String port : hy2Port.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
-                    String link = String.format("hysteria2://%s@%s:%s?insecure=1&sni=www.bing.com&pinSHA256=%s&alpn=h3&obfs=salamander&obfs-password=%s#H2-%s",
-                        uuid, directAddr, port, fingerprint, uuid.substring(0,8), name);
+                    String link = String.format("hysteria2://%s@%s:%s/?sni=www.bing.com&insecure=1&pinSHA256=%s&alpn=h3&obfs=none#H2-%s",
+                        uuid, directAddr, port, fingerprint, name);
                     sub.append(link).append("\n");
                 }
             }
@@ -392,8 +393,8 @@ public final class NanoLimbo {
             for (String port : realityPort.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
-                    String link = String.format("vless://%s@%s:%s?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.cloudflare.com&fp=chrome&pbk=%s&sid=%s&spx=%%2F&type=tcp&headerType=none#Reality-%s",
-                        uuid, directAddr, port, realityPublicKey, realityShortId, name);
+                    String link = String.format("vless://%s@%s:%s?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=firefox&pbk=%s&type=tcp&headerType=none#Reality-%s",
+                        uuid, directAddr, port, realityPublicKey, name);
                     sub.append(link).append("\n");
                 }
             }
@@ -404,8 +405,9 @@ public final class NanoLimbo {
             for (String port : s5Port.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
-                    String link = String.format("socks5://%s@%s:%s#S5-%s",
-                        uuid, directAddr, port, name);
+                    String s5Auth = Base64.getEncoder().encodeToString((uuid.substring(0,8) + ":" + uuid.substring(uuid.length()-12)).getBytes("UTF-8")).replace("=", "");
+                    String link = String.format("socks://%s@%s:%s#S5-%s",
+                        s5Auth, directAddr, port, name);
                     sub.append(link).append("\n");
                 }
             }
@@ -477,7 +479,7 @@ public final class NanoLimbo {
         String disableArgo = env.getOrDefault("DISABLE_ARGO", "false");
         if (!"true".equalsIgnoreCase(disableArgo)) {
             inbounds.append(String.format(
-                "{\"type\":\"vless\",\"tag\":\"argo_ws_%d\",\"listen\":\"127.0.0.1\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\"}],\"transport\":{\"type\":\"ws\",\"path\":\"/\"}}",
+                "{\"type\":\"vmess\",\"tag\":\"argo_ws_%d\",\"listen\":\"127.0.0.1\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\"}],\"transport\":{\"type\":\"ws\",\"path\":\"/vmess-argo\",\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}",
                 tag++, argoPort, uuid));
             inbounds.append(",");
         }
@@ -488,7 +490,7 @@ public final class NanoLimbo {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     inbounds.append(String.format(
-                        "{\"type\":\"socks\",\"tag\":\"s5_%d\",\"listen\":\"0.0.0.0\",\"listen_port\":%s}", tag++, port));
+                        "{\"type\":\"socks\",\"tag\":\"s5_%d\",\"listen\":\"0.0.0.0\",\"listen_port\":%s,\"users\":[{\"username\":\"%s\",\"password\":\"%s\"}]}", tag++, port, uuid.substring(0,8), uuid.substring(uuid.length()-12)));
                     inbounds.append(",");
                 }
             }
@@ -526,7 +528,7 @@ public final class NanoLimbo {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     inbounds.append(String.format(
-                        "{\"type\":\"vless\",\"tag\":\"reality_%d\",\"listen\":\"0.0.0.0\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\",\"flow\":\"xtls-rprx-vision\"}],\"tls\":{\"enabled\":true,\"server_name\":\"www.cloudflare.com\",\"reality\":{\"enabled\":true,\"handshake\":{\"server\":\"www.cloudflare.com\",\"server_port\":443},\"private_key\":\"%s\",\"short_id\":[\"%s\"]}}}",
+                        "{\"type\":\"vless\",\"tag\":\"reality_%d\",\"listen\":\"0.0.0.0\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\",\"flow\":\"xtls-rprx-vision\"}],\"tls\":{\"enabled\":true,\"server_name\":\"www.iij.ad.jp\",\"reality\":{\"enabled\":true,\"handshake\":{\"server\":\"www.iij.ad.jp\",\"server_port\":443},\"private_key\":\"%s\",\"short_id\":[\"%s\"]}}}",
                         tag++, port, uuid, realityPrivateKey, realityShortId));
                     inbounds.append(",");
                 }
