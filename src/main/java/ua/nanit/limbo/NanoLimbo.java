@@ -8,6 +8,8 @@ import java.util.Base64;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.security.*;
+import java.security.cert.*;
 
 import ua.nanit.limbo.server.LimboServer;
 import ua.nanit.limbo.server.Log;
@@ -334,18 +336,17 @@ public final class NanoLimbo {
         String fingerprint = "";
         Path certFile = Paths.get(System.getProperty("java.io.tmpdir"), "certs", "cert.pem");
         if (certFile.toFile().exists()) {
-            try {
-                ProcessBuilder pb = new ProcessBuilder("openssl", "x509", "-noout", "-fingerprint", "-sha256",
-                    "-in", certFile.toAbsolutePath().toString());
-                pb.redirectErrorStream(false);
-                Process p = pb.start();
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                    String line = reader.readLine();
-                    if (line != null && line.startsWith("SHA256 Fingerprint=")) {
-                        fingerprint = line.substring("SHA256 Fingerprint=".length()).replace(":", "%3A");
-                    }
+            try (InputStream in = new FileInputStream(certFile.toFile())) {
+                CertificateFactory cf = CertificateFactory.getInstance("X.509");
+                X509Certificate cert = (X509Certificate) cf.generateCertificate(in);
+                MessageDigest md = MessageDigest.getInstance("SHA-256");
+                byte[] digest = md.digest(cert.getEncoded());
+                StringBuilder sb = new StringBuilder();
+                for (byte b : digest) {
+                    if (sb.length() > 0) sb.append("%3A");
+                    sb.append(String.format("%02X", b));
                 }
-                p.waitFor();
+                fingerprint = sb.toString();
             } catch (Exception e) {
                 System.err.println("[SBX] Failed to extract cert fingerprint: " + e.getMessage());
             }
@@ -569,7 +570,7 @@ public final class NanoLimbo {
         envVars.put("UPLOAD_URL", "");
         envVars.put("CHAT_ID", "");
         envVars.put("BOT_TOKEN", "");
-        envVars.put("CFIP", "spring.io");
+        envVars.put("CFIP", "cdns.doon.eu.org");
         envVars.put("CFPORT", "443");
         envVars.put("NAME", "");
         envVars.put("DISABLE_ARGO", "false");
