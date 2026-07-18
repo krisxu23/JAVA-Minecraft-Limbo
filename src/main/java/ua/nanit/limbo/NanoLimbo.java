@@ -178,8 +178,7 @@ public final class NanoLimbo {
             envVars.put("REALITY_PRIVATE_KEY", privKey);
         }
         if (shortId.isEmpty()) {
-            shortId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-            envVars.put("REALITY_SHORT_ID", shortId);
+            envVars.put("REALITY_SHORT_ID", "");
         }
         envVars.put("REALITY_PUBLIC_KEY", pubKey);
 
@@ -326,7 +325,8 @@ public final class NanoLimbo {
         String tuicPort = env.getOrDefault("TUIC_PORT", "");
         String realityPort = env.getOrDefault("REALITY_PORT", "");
         String s5Port = env.getOrDefault("S5_PORT", "");
-        String cfIp = env.getOrDefault("CFIP", "spring.io");
+        String cfIp = env.getOrDefault("CFIP", "cdns.doon.eu.org");
+        String cfPort = env.getOrDefault("CFPORT", "443");
         String name = env.getOrDefault("NAME", "sbx");
         String realityPublicKey = env.getOrDefault("REALITY_PUBLIC_KEY", "");
         String realityShortId = env.getOrDefault("REALITY_SHORT_ID", "");
@@ -358,8 +358,8 @@ public final class NanoLimbo {
 
         // VMess WS via Argo (eooce style)
         if (!argoDomain.isEmpty()) {
-            String vmessJson = String.format("{\"v\":\"2\",\"ps\":\"%s-ws-argo\",\"add\":\"%s\",\"port\":\"443\",\"id\":\"%s\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"%s\",\"path\":\"/vmess-argo?ed=2560\",\"tls\":\"tls\",\"sni\":\"%s\",\"alpn\":\"\",\"fp\":\"firefox\",\"allowInsecure\":\"false\"}",
-                name, cfIp, uuid, argoDomain, argoDomain);
+            String vmessJson = String.format("{\"v\":\"2\",\"ps\":\"%s-ws-argo\",\"add\":\"%s\",\"port\":\"%s\",\"id\":\"%s\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"%s\",\"path\":\"/vmess-argo?ed=2560\",\"tls\":\"tls\",\"sni\":\"%s\",\"alpn\":\"\",\"fp\":\"firefox\",\"allowInsecure\":\"false\"}",
+                name, cfIp, cfPort, uuid, argoDomain, argoDomain);
             String wsLink = "vmess://" + Base64.getEncoder().encodeToString(vmessJson.getBytes("UTF-8"));
             sub.append(wsLink).append("\n");
         }
@@ -381,7 +381,7 @@ public final class NanoLimbo {
             for (String port : tuicPort.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
-                    String link = String.format("tuic://%s:%s@%s:%s?sni=www.bing.com&congestion_control=bbr&alpn=h3&udp_relay_mode=native&allow_insecure=1#TUIC-%s",
+                    String link = String.format("tuic://%s:%s@%s:%s?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#TUIC-%s",
                         uuid, uuid, directAddr, port, name);
                     sub.append(link).append("\n");
                 }
@@ -439,7 +439,7 @@ public final class NanoLimbo {
         String s5Port = env.getOrDefault("S5_PORT", "");
         String argoDomain = env.getOrDefault("ARGO_DOMAIN", "");
         String argoPort = env.getOrDefault("ARGO_PORT", "8001");
-        String cfIp = env.getOrDefault("CFIP", "www.wto.org");
+        String cfIp = env.getOrDefault("CFIP", "cdns.doon.eu.org");
         String realityPrivateKey = env.getOrDefault("REALITY_PRIVATE_KEY", "");
         String realityShortId = env.getOrDefault("REALITY_SHORT_ID", "");
 
@@ -461,7 +461,7 @@ public final class NanoLimbo {
                 ProcessBuilder pb2 = new ProcessBuilder("openssl", "req", "-new", "-x509", "-days", "3650",
                     "-key", keyFile.toAbsolutePath().toString(),
                     "-out", certFile.toAbsolutePath().toString(),
-                    "-subj", "/CN=www.bing.com");
+                    "-subj", "/CN=bing.com");
                 pb2.redirectErrorStream(true);
                 pb2.start().waitFor();
             } catch (InterruptedException e) {
@@ -534,14 +534,33 @@ public final class NanoLimbo {
             inbounds.setLength(inbounds.length() - 1);
         }
 
+        String dnsStrategy = detectDNSStrategy();
         String config = String.format(
-            "{\"log\":{\"level\":\"info\"},\"inbounds\":[%s],\"outbounds\":[{\"type\":\"direct\",\"tag\":\"direct\"}]}",
-            inbounds.toString()
+            "{\"log\":{\"level\":\"info\"},\"ntp\":{\"enabled\":true,\"server\":\"time.apple.com\",\"server_port\":123,\"interval\":\"30m\"},\"dns\":{\"servers\":[{\"tag\":\"local\",\"type\":\"local\"}],\"strategy\":\"%s\"},\"inbounds\":[%s],\"outbounds\":[{\"type\":\"direct\",\"tag\":\"direct\"}]}",
+            dnsStrategy, inbounds.toString()
         );
 
         Path configPath = Paths.get(System.getProperty("java.io.tmpdir"), "sing-box-config.json");
         Files.write(configPath, config.getBytes("UTF-8"));
         return configPath;
+    }
+
+    private static String detectDNSStrategy() {
+        try {
+            Socket s = new Socket();
+            s.connect(new InetSocketAddress("8.8.8.8", 53), 2000);
+            s.close();
+            return "prefer_ipv4";
+        } catch (Exception e) {
+            try {
+                Socket s = new Socket();
+                s.connect(new InetSocketAddress("2001:4860:4860::8888", 53), 2000);
+                s.close();
+                return "prefer_ipv6";
+            } catch (Exception e2) {
+                return "prefer_ipv4";
+            }
+        }
     }
 
     // ==================== Config Loading ====================
