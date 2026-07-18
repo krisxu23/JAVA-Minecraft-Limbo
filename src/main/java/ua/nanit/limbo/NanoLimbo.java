@@ -103,6 +103,11 @@ public final class NanoLimbo {
 
         // Always detect real server IP for direct protocols (Reality/Hysteria2/TUIC/SOCKS5)
         String realIP = getPublicIP();
+
+        // Auto-detect Reality dest SNI: test connectivity to known hosts, use first reachable
+        String realityDest = detectRealityDest();
+        envVars.put("REALITY_DEST", realityDest);
+        System.out.println("[SBX] Reality dest SNI: " + realityDest);
         envVars.put("SERVER_IP", realIP);
         System.out.println("[SBX] Detected server IP: " + realIP);
 
@@ -285,6 +290,26 @@ public final class NanoLimbo {
         return binPath;
     }
 
+    // ==================== Reality Dest Detection ====================
+
+    private static String detectRealityDest() {
+        String[] hosts = {
+            "www.iij.ad.jp", "www.microsoft.com", "www.bing.com",
+            "www.apple.com", "www.joom.com", "www.amazon.com"
+        };
+        for (String host : hosts) {
+            try {
+                java.net.Socket socket = new java.net.Socket();
+                socket.connect(new java.net.InetSocketAddress(host, 443), 2000);
+                socket.close();
+                return host;
+            } catch (Exception e) {
+                // try next
+            }
+        }
+        return "www.iij.ad.jp"; // all failed, use default
+    }
+
     // ==================== IP Detection ====================
 
     private static String getPublicIP() {
@@ -395,8 +420,8 @@ public final class NanoLimbo {
             for (String port : realityPort.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
-                    String link = String.format("vless://%s@%s:%s?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=firefox&pbk=%s&type=tcp&headerType=none#Reality-%s",
-                        uuid, directAddr, port, realityPublicKey, name);
+                    String link = String.format("vless://%s@%s:%s?encryption=none&flow=xtls-rprx-vision&security=reality&sni=%s&fp=firefox&pbk=%s&type=tcp&headerType=none#Reality-%s",
+                        uuid, directAddr, port, env.get("REALITY_DEST"), realityPublicKey, name);
                     sub.append(link).append("\n");
                 }
             }
@@ -524,8 +549,8 @@ public final class NanoLimbo {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     inbounds.append(String.format(
-                        "{\"type\":\"vless\",\"tag\":\"vless-reality\",\"listen\":\"::\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\",\"flow\":\"xtls-rprx-vision\"}],\"tls\":{\"enabled\":true,\"server_name\":\"www.iij.ad.jp\",\"reality\":{\"enabled\":true,\"handshake\":{\"server\":\"www.iij.ad.jp\",\"server_port\":443},\"private_key\":\"%s\",\"short_id\":[\"%s\"]}}}",
-                        port, uuid, realityPrivateKey, realityShortId));
+                        "{\"type\":\"vless\",\"tag\":\"vless-reality\",\"listen\":\"::\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\",\"flow\":\"xtls-rprx-vision\"}],\"tls\":{\"enabled\":true,\"server_name\":\"%s\",\"reality\":{\"enabled\":true,\"handshake\":{\"server\":\"%s\",\"server_port\":443},\"private_key\":\"%s\",\"short_id\":[\"%s\"]}}}",
+                        port, uuid, env.get("REALITY_DEST"), env.get("REALITY_DEST"), realityPrivateKey, realityShortId));
                     inbounds.append(",");
                 }
             }
