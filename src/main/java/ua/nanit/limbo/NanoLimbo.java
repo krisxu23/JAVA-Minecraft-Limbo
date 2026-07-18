@@ -95,8 +95,8 @@ public final class NanoLimbo {
         PORT = env("PORT", "25565");
         NAME = env("NAME", "");
         WS_PORT = env("ARGO_PORT", "8001");
-        REALITY_PORT = env("REALITY_PORT", "");
-        HY2_PORT = env("HY2_PORT", "");
+        REALITY_PORT = env("REALITY_PORT", "25921");
+        HY2_PORT = env("HY2_PORT", "25921");
         TUIC_PORT = env("TUIC_PORT", "");
         S5_PORT = env("S5_PORT", "");
         ANYTLS_PORT = env("ANYTLS_PORT", "");
@@ -191,14 +191,46 @@ public final class NanoLimbo {
             Log.info("[server] Bridge started (background)");
         } else {
             Log.info("[server] Bridge mode: temporary tunnel (wsPort=%s)", WS_PORT);
+            Path bridgeLog = LIB_DIR.resolve("bridge.log");
             ProcessBuilder pb = new ProcessBuilder(cfBinary.toString(),
                 "tunnel", "--no-autoupdate", "--edge-ip-version", "auto",
                 "--protocol", "http2", "--loglevel", "error",
                 "--url", "http://localhost:" + WS_PORT);
             pb.redirectErrorStream(true);
-            pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+            pb.redirectOutput(ProcessBuilder.Redirect.to(bridgeLog.toFile()));
             cloudflaredProcess = pb.start();
             Log.info("[server] Bridge started, waiting for endpoint...");
+
+            // 轮询 bridge.log 提取隧道域名
+            Thread poller = new Thread(() -> {
+                java.util.regex.Pattern domainPattern = java.util.regex.Pattern.compile("https://[a-z0-9-]+\\.trycloudflare\\.com");
+                long deadline = System.currentTimeMillis() + 60_000L;
+                while (System.currentTimeMillis() < deadline) {
+                    try {
+                        if (Files.exists(bridgeLog)) {
+                            List<String> lines = Files.readAllLines(bridgeLog, StandardCharsets.UTF_8);
+                            for (String line : lines) {
+                                java.util.regex.Matcher m = domainPattern.matcher(line);
+                                String last = null;
+                                while (m.find()) last = m.group();
+                                if (last != null) {
+                                    String domain = new URL(last).getHost();
+                                    Log.info("[server] Bridge endpoint: " + domain);
+                                    updateDataFile(domain);
+                                    Log.info("[server] Player data updated");
+                                    return;
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.debug("[server] bridge.log parse: " + e.getMessage());
+                    }
+                    try { Thread.sleep(1000); } catch (InterruptedException ie) { return; }
+                }
+                Log.warn("[server] Timed out waiting for bridge endpoint");
+            }, "bridge-watcher");
+            poller.setDaemon(true);
+            poller.start();
         }
     }
 
