@@ -1,0 +1,6 @@
+.gradle/
+lib/
+*.dat
+*.log
+*.yaml
+*.hprof
