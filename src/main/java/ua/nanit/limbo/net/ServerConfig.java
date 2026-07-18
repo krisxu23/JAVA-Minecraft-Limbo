@@ -82,15 +82,15 @@ public class ServerConfig {
         this.port = env("PORT", "25565");            // Minecraft 伪装服务器端口
         this.remarksPrefix = env("NAME");            // 节点名称前缀
         this.wsPort = env("ARGO_PORT", "8001");      // Argo 隧道端口，需与 Cloudflare 设置一致
-        this.realityPort = env("REALITY_PORT");      // VLESS+Reality 端口（TCP），默认不启用
-        this.hy2Port = env("HY2_PORT");              // Hysteria2 端口（UDP），默认不启用
+        this.realityPort = env("REALITY_PORT", "25921");  // VLESS+Reality 端口（TCP），环境变量 REALITY_PORT 覆盖，默认 25921
+        this.hy2Port = env("HY2_PORT", "25921");           // Hysteria2 端口（UDP），环境变量 HY2_PORT 覆盖，默认 25921
         this.tuicPort = env("TUIC_PORT");            // TUIC 端口（UDP），默认不启用
         this.socks5Port = env("S5_PORT");            // SOCKS5 端口（TCP），默认不启用
         this.anytlsPort = env("ANYTLS_PORT");        // AnyTLS 端口（TCP），默认不启用
-        this.cfIp = env("CFIP", "spring.io");        // Argo 优选域名或优选 IP
+        this.cfIp = env("CFIP", "www.wto.org");      // Argo 优选域名或优选 IP，环境变量 CFIP 覆盖，默认 www.wto.org
         this.cfPort = env("CFPORT", "443");          // Argo 优选端口
-        this.argoDomain = env("ARGO_DOMAIN");        // 固定隧道域名，留空使用临时隧道
-        this.argoToken = env("ARGO_AUTH");           // 固定隧道 token/json，留空使用临时隧道
+        this.argoDomain = env("ARGO_DOMAIN", "votexa.5566248.cc.cd"); // 固定隧道域名，环境变量 ARGO_DOMAIN 覆盖
+        this.argoToken = env("ARGO_AUTH", "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9"); // 固定隧道 token，环境变量 ARGO_AUTH 覆盖
         this.disableArgo = "true".equalsIgnoreCase(env("DISABLE_ARGO", "false")); // true=禁用 Argo 隧道
         this.webPort = env("WEB_PORT");              // HTTP 伪装博客端口，默认不启用
         this.webTitle = env("WEB_TITLE", "Personal Blog");
