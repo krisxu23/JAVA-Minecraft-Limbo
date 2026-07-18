@@ -176,6 +176,7 @@ public final class NanoLimbo {
             shortId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
             envVars.put("REALITY_SHORT_ID", shortId);
         }
+        envVars.put("REALITY_PUBLIC_KEY", pubKey);
 
         System.out.println("[SBX] Reality PublicKey: " + pubKey);
         System.out.println("[SBX] Reality ShortId: " + envVars.get("REALITY_SHORT_ID"));
