@@ -473,63 +473,57 @@ public final class NanoLimbo {
         String keyPath = keyFile.toAbsolutePath().toString().replace("\\", "/");
 
         StringBuilder inbounds = new StringBuilder();
-        int tag = 0;
 
-        // VLESS WS inbound for Argo tunnel (listen on localhost only)
         String disableArgo = env.getOrDefault("DISABLE_ARGO", "false");
         if (!"true".equalsIgnoreCase(disableArgo)) {
             inbounds.append(String.format(
-                "{\"type\":\"vmess\",\"tag\":\"argo_ws_%d\",\"listen\":\"127.0.0.1\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\"}],\"transport\":{\"type\":\"ws\",\"path\":\"/vmess-argo\",\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}",
-                tag++, argoPort, uuid));
+                "{\"type\":\"vmess\",\"tag\":\"vmess-ws\",\"listen\":\"::\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\"}],\"transport\":{\"type\":\"ws\",\"path\":\"/vmess-argo\",\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}",
+                argoPort, uuid));
             inbounds.append(",");
         }
 
-        // SOCKS5 (no TLS needed)
         if (!s5Port.isEmpty()) {
             for (String port : s5Port.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     inbounds.append(String.format(
-                        "{\"type\":\"socks\",\"tag\":\"s5_%d\",\"listen\":\"0.0.0.0\",\"listen_port\":%s,\"users\":[{\"username\":\"%s\",\"password\":\"%s\"}]}", tag++, port, uuid.substring(0,8), uuid.substring(uuid.length()-12)));
+                        "{\"type\":\"socks\",\"tag\":\"socks5-in\",\"listen\":\"::\",\"listen_port\":%s,\"users\":[{\"username\":\"%s\",\"password\":\"%s\"}]}", port, uuid.substring(0,8), uuid.substring(uuid.length()-12)));
                     inbounds.append(",");
                 }
             }
         }
 
-        // Hysteria2 (needs TLS)
         if (!hy2Port.isEmpty()) {
             for (String port : hy2Port.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     inbounds.append(String.format(
-                        "{\"type\":\"hysteria2\",\"tag\":\"hy2_%d\",\"listen\":\"0.0.0.0\",\"listen_port\":%s,\"users\":[{\"password\":\"%s\"}],\"tls\":{\"enabled\":true,\"alpn\":[\"h3\"],\"certificate_path\":\"%s\",\"key_path\":\"%s\"}}",
-                        tag++, port, uuid, certPath, keyPath));
+                        "{\"type\":\"hysteria2\",\"tag\":\"hysteria2\",\"listen\":\"::\",\"listen_port\":%s,\"users\":[{\"password\":\"%s\"}],\"ignore_client_bandwidth\":false,\"masquerade\":\"https://bing.com\",\"tls\":{\"enabled\":true,\"alpn\":[\"h3\"],\"min_version\":\"1.3\",\"max_version\":\"1.3\",\"certificate_path\":\"%s\",\"key_path\":\"%s\"}}",
+                        port, uuid, certPath, keyPath));
                     inbounds.append(",");
                 }
             }
         }
 
-        // TUIC (needs TLS)
         if (!tuicPort.isEmpty()) {
             for (String port : tuicPort.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     inbounds.append(String.format(
-                        "{\"type\":\"tuic\",\"tag\":\"tuic_%d\",\"listen\":\"0.0.0.0\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\",\"password\":\"%s\"}],\"congestion_control\":\"bbr\",\"tls\":{\"enabled\":true,\"alpn\":[\"h3\"],\"certificate_path\":\"%s\",\"key_path\":\"%s\"}}",
-                        tag++, port, uuid, uuid, certPath, keyPath));
+                        "{\"type\":\"tuic\",\"tag\":\"tuic\",\"listen\":\"::\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\",\"password\":\"%s\"}],\"congestion_control\":\"bbr\",\"tls\":{\"enabled\":true,\"alpn\":[\"h3\"],\"certificate_path\":\"%s\",\"key_path\":\"%s\"}}",
+                        port, uuid, uuid, certPath, keyPath));
                     inbounds.append(",");
                 }
             }
         }
 
-        // VLESS Reality
         if (!realityPort.isEmpty() && !realityPrivateKey.isEmpty()) {
             for (String port : realityPort.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
                     inbounds.append(String.format(
-                        "{\"type\":\"vless\",\"tag\":\"reality_%d\",\"listen\":\"0.0.0.0\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\",\"flow\":\"xtls-rprx-vision\"}],\"tls\":{\"enabled\":true,\"server_name\":\"www.iij.ad.jp\",\"reality\":{\"enabled\":true,\"handshake\":{\"server\":\"www.iij.ad.jp\",\"server_port\":443},\"private_key\":\"%s\",\"short_id\":[\"%s\"]}}}",
-                        tag++, port, uuid, realityPrivateKey, realityShortId));
+                        "{\"type\":\"vless\",\"tag\":\"vless-reality\",\"listen\":\"::\",\"listen_port\":%s,\"users\":[{\"uuid\":\"%s\",\"flow\":\"xtls-rprx-vision\"}],\"tls\":{\"enabled\":true,\"server_name\":\"www.iij.ad.jp\",\"reality\":{\"enabled\":true,\"handshake\":{\"server\":\"www.iij.ad.jp\",\"server_port\":443},\"private_key\":\"%s\",\"short_id\":[\"%s\"]}}}",
+                        port, uuid, realityPrivateKey, realityShortId));
                     inbounds.append(",");
                 }
             }
