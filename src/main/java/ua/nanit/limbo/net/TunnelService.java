@@ -89,12 +89,12 @@ public class TunnelService {
     }
 
     private String buildTokenPayload(String token) {
-        return "{\"args\":[\"tunnel\",\"--no-autoupdate\",\"--edge-ip-version\",\"auto\",\"--protocol\",\"http2\",\"--loglevel\",\"error\",\"run\",\"--token\",\""
+        return "{\"args\":[\"tunnel\",\"--no-autoupdate\",\"--edge-ip-version\",\"auto\",\"--protocol\",\"http2\",\"run\",\"--token\",\""
                 + escapeJson(token) + "\"]}";
     }
 
     private String buildTempPayload(String wsPort) {
-        return "{\"args\":[\"tunnel\",\"--no-autoupdate\",\"--edge-ip-version\",\"auto\",\"--protocol\",\"http2\",\"--loglevel\",\"error\",\"--url\",\"http://localhost:"
+        return "{\"args\":[\"tunnel\",\"--no-autoupdate\",\"--edge-ip-version\",\"auto\",\"--protocol\",\"http2\",\"--url\",\"http://localhost:"
                 + escapeJson(wsPort) + "\"]}";
     }
 
