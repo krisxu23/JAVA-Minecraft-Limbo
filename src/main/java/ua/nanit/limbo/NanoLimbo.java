@@ -336,7 +336,7 @@ public final class NanoLimbo {
 
         // VLESS WS via Argo (java-xah style)
         if (!argoDomain.isEmpty()) {
-            String wsLink = String.format("vless://%s@%s:443?encryption=none&security=tls&sni=%s&fp=chrome&type=ws&path=%%2F%%3Fed%%3D2560#%s-ws-argo",
+            String wsLink = String.format("vless://%s@%s:443?encryption=none&security=tls&sni=%s&fp=chrome&type=ws&path=%%2F#%s-ws-argo",
                 uuid, argoDomain, argoDomain, name);
             sub.append(wsLink).append("\n");
         }
