@@ -30,7 +30,7 @@ public final class CommandManager extends Thread {
         while (true) {
             try {
                 command = scanner.nextLine().trim();
-            } catch (NoSuchElementException e) {
+            } catch (NoSuchElementException | IllegalStateException e) {
                 break;
             }
 

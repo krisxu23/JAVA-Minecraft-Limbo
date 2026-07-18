@@ -48,6 +48,7 @@ public final class Connections {
     }
 
     public void removeConnection(ClientConnection connection) {
+        if (connection.getUuid() == null) return;
         connections.remove(connection.getUuid());
         Log.info("Player %s disconnected", connection.getUsername());
     }

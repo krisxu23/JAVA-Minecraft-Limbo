@@ -49,10 +49,12 @@ public class PacketBossBar implements PacketOut {
     public void encode(ByteMessage msg, Version version) {
         msg.writeUuid(uuid);
         msg.writeVarInt(0); // Create bossbar
-        msg.writeNbtMessage(bossBar.getText(), version);
-        msg.writeFloat(bossBar.getHealth());
-        msg.writeVarInt(bossBar.getColor().getIndex());
-        msg.writeVarInt(bossBar.getDivision().getIndex());
+        if (bossBar != null) {
+            msg.writeNbtMessage(bossBar.getText(), version);
+            msg.writeFloat(bossBar.getHealth());
+            msg.writeVarInt(bossBar.getColor().getIndex());
+            msg.writeVarInt(bossBar.getDivision().getIndex());
+        }
         msg.writeByte(flags);
     }
 

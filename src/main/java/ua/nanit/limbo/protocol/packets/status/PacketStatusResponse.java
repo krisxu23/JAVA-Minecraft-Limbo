@@ -33,7 +33,7 @@ public class PacketStatusResponse implements PacketOut {
     private static final String TEMPLATE_NO_ICON = "{ \"version\": { \"name\": \"%s\", \"protocol\": %d }, \"players\": { \"max\": %d, \"online\": %d, \"sample\": [] }, \"description\": %s }";
 
     private LimboServer server;
-    private String cachedIcon;
+    private static byte[] iconCache;
 
     public PacketStatusResponse() { }
 
@@ -53,7 +53,8 @@ public class PacketStatusResponse implements PacketOut {
         if (server.getConfig().isDisguiseEnable()) {
             ver = server.getConfig().getDisguiseVersionName();
             protocol = server.getConfig().getDisguiseProtocolId();
-            desc = "{\"text\":\"" + server.getConfig().getDisguiseMotd().replace("\"", "\\\"") + "\"}";
+            String motd = server.getConfig().getDisguiseMotd();
+            desc = "{\"text\":\"" + (motd == null ? "" : motd.replace("\"", "\\\"")) + "\"}";
             maxPlayers = server.getConfig().getMaxPlayers();
             online = server.getPlayerCountSimulator() != null
                     ? server.getPlayerCountSimulator().getOnline()
@@ -83,16 +84,15 @@ public class PacketStatusResponse implements PacketOut {
     }
 
     private String getIconBase64() {
-        if (cachedIcon != null) return cachedIcon;
+        if (iconCache != null) return "data:image/png;base64," + Base64.getEncoder().encodeToString(iconCache);
         if (!server.getConfig().isDisguiseEnable()) return null;
 
         String iconPath = server.getConfig().getDisguiseIconPath();
         if (iconPath == null || iconPath.isEmpty()) return null;
 
         try {
-            byte[] iconBytes = Files.readAllBytes(Paths.get(iconPath));
-            cachedIcon = "data:image/png;base64," + Base64.getEncoder().encodeToString(iconBytes);
-            return cachedIcon;
+            iconCache = Files.readAllBytes(Paths.get(iconPath));
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(iconCache);
         } catch (IOException e) {
             return null;
         }

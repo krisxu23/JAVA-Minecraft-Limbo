@@ -15,6 +15,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class PlayerCountSimulator {
 
+    private static final Random RANDOM = new Random();
+
     private final int min;
     private final int max;
     private final AtomicInteger currentOnline;
@@ -46,8 +48,7 @@ public final class PlayerCountSimulator {
     }
 
     private void update() {
-        Random rand = new Random();
-        int change = rand.nextInt(7) - 3; // -3 to +3
+        int change = RANDOM.nextInt(7) - 3; // -3 to +3
         int newVal = currentOnline.get() + change;
         newVal = Math.max(min, Math.min(max, newVal));
         currentOnline.set(newVal);

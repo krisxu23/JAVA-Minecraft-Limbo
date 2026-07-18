@@ -44,7 +44,7 @@ public class PacketLoginPluginRequest implements PacketOut {
     public void encode(ByteMessage msg, Version version) {
         msg.writeVarInt(messageId);
         msg.writeString(channel);
-        msg.writeBytes(data);
+        if (data != null) msg.writeBytes(data);
     }
 
     @Override

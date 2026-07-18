@@ -58,7 +58,7 @@ public class ClientConnection extends ChannelInboundHandlerAdapter {
     private final PacketDecoder decoder;
     private final PacketEncoder encoder;
 
-    private State state;
+    private State state = State.HANDSHAKING;
     private Version clientVersion;
     private SocketAddress address;
 

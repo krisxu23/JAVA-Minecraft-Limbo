@@ -16,11 +16,11 @@ public final class PlayerMotion {
     private static final int MAX_Y = 110;
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    public double x;
-    public double y;
-    public double z;
-    public double angle;
-    public double speed;
+    private double x;
+    private double y;
+    private double z;
+    private double angle;
+    private double speed;
 
     public PlayerMotion() {
         this.x = RANDOM.nextInt(FIELD_SIZE);
@@ -64,6 +64,11 @@ public final class PlayerMotion {
         else if (y > MAX_Y) y = MAX_Y;
     }
 
+    public double getX() { return x; }
+    public double getY() { return y; }
+    public double getZ() { return z; }
+    public double getAngle() { return angle; }
+    public double getSpeed() { return speed; }
     public int getChunkX() { return (int) x >> 4; }
     public int getChunkZ() { return (int) z >> 4; }
     public int getBlockX() { return (int) x; }
