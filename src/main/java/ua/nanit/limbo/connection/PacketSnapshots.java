@@ -104,13 +104,18 @@ public final class PacketSnapshots {
 
         int teleportId = ThreadLocalRandom.current().nextInt();
 
+        // Randomize spawn position slightly so each restart looks different
+        int spawnY = 300 + ThreadLocalRandom.current().nextInt(200); // 300-499
+        int spawnX = ThreadLocalRandom.current().nextInt(200) - 100; // -100 to 99
+        int spawnZ = ThreadLocalRandom.current().nextInt(200) - 100; // -100 to 99
+
         PacketPlayerPositionAndLook positionAndLookLegacy
-                = new PacketPlayerPositionAndLook(0, 64, 0, 0, 0, teleportId);
+                = new PacketPlayerPositionAndLook(spawnX, 64, spawnZ, 0, 0, teleportId);
 
         PacketPlayerPositionAndLook positionAndLook
-                = new PacketPlayerPositionAndLook(0, 400, 0, 0, 0, teleportId);
+                = new PacketPlayerPositionAndLook(spawnX, spawnY, spawnZ, 0, 0, teleportId);
 
-        PacketSpawnPosition packetSpawnPosition = new PacketSpawnPosition(0, 400, 0);
+        PacketSpawnPosition packetSpawnPosition = new PacketSpawnPosition(spawnX, spawnY, spawnZ);
 
         PacketDeclareCommands declareCommands = new PacketDeclareCommands();
         declareCommands.setCommands(Collections.emptyList());
@@ -237,8 +242,8 @@ public final class PacketSnapshots {
         packetGameEvent.setValue(0);
         PACKET_START_WAITING_CHUNKS = PacketSnapshot.of(packetGameEvent);
 
-        int chunkXOffset = (int) 0 >> 4; // Default x position is 0
-        int chunkZOffset = (int) 0 >> 4; // Default z position is 0
+        int chunkXOffset = spawnX >> 4; // Match spawn position
+        int chunkZOffset = spawnZ >> 4; // Match spawn position
         int chunkEdgeSize = 1; // TODO Make configurable?
 
         List<PacketSnapshot> emptyChunks = new ArrayList<>();

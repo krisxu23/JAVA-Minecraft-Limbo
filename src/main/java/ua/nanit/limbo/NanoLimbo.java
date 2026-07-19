@@ -6,6 +6,10 @@ import ua.nanit.limbo.server.Log;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Entry point for the NanoLimbo proxy + Minecraft limbo server.
@@ -17,6 +21,12 @@ public final class NanoLimbo {
 
     private static Process sbxProcess;
     private static Process cfProcess;
+    private static Map<String, String> env;
+    private static ScheduledExecutorService healthMonitor;
+    private static final AtomicInteger sbxRestartCount = new AtomicInteger(0);
+    private static final AtomicInteger cfRestartCount = new AtomicInteger(0);
+    private static final int MAX_RESTART_ATTEMPTS = 5;
+    private static final long RESTART_COOLDOWN_MS = 10_000;
 
     public static void main(String[] args) {
 
@@ -55,7 +65,7 @@ public final class NanoLimbo {
 
     private static void startServices() throws Exception {
         // 1. Load environment configuration
-        Map<String, String> env = EnvLoader.load();
+        env = EnvLoader.load();
 
         // 2. Detect network state
         String realIP = NetworkDetector.getPublicIP();
@@ -80,11 +90,7 @@ public final class NanoLimbo {
         SubscriptionGenerator.generate(env);
 
         // 6. Start sing-box
-        System.out.println("[SBX] Starting sing-box...");
-        ProcessBuilder pb = new ProcessBuilder(SingBoxManager.getBinaryPath().toString(), "run", "-c", configPath.toAbsolutePath().toString());
-        pb.redirectErrorStream(true);
-        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        sbxProcess = pb.start();
+        sbxProcess = startSingBox(configPath);
 
         // 7. Start cloudflared (if Argo enabled)
         String disableArgo = env.getOrDefault("DISABLE_ARGO", "false");
@@ -99,9 +105,87 @@ public final class NanoLimbo {
         } else {
             System.out.println("[CF] Argo tunnel disabled by DISABLE_ARGO=true");
         }
+
+        // 8. Start health monitor
+        startHealthMonitor();
+    }
+
+    private static Process startSingBox(Path configPath) throws Exception {
+        System.out.println("[SBX] Starting sing-box...");
+        ProcessBuilder pb = new ProcessBuilder(SingBoxManager.getBinaryPath().toString(), "run", "-c", configPath.toAbsolutePath().toString());
+        pb.redirectErrorStream(true);
+        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+        return pb.start();
+    }
+
+    private static void startHealthMonitor() {
+        healthMonitor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "HealthMonitor");
+            t.setDaemon(true);
+            return t;
+        });
+
+        healthMonitor.scheduleAtFixedRate(() -> {
+            try {
+                checkProcessHealth();
+            } catch (Exception e) {
+                System.err.println("[MONITOR] Health check error: " + e.getMessage());
+            }
+        }, 30, 30, TimeUnit.SECONDS);
+
+        System.out.println("[MONITOR] Process health monitor started (interval=30s)");
+    }
+
+    private static void checkProcessHealth() {
+        // Check sing-box
+        if (sbxProcess != null && !sbxProcess.isAlive()) {
+            int exitValue = sbxProcess.exitValue();
+            System.err.println("[MONITOR] sing-box process died (exit=" + exitValue + ")");
+            if (sbxRestartCount.get() < MAX_RESTART_ATTEMPTS) {
+                sbxRestartCount.incrementAndGet();
+                System.out.println("[MONITOR] Restarting sing-box (attempt " + sbxRestartCount.get() + "/" + MAX_RESTART_ATTEMPTS + ")...");
+                try {
+                    Thread.sleep(RESTART_COOLDOWN_MS);
+                    Path configPath = SingBoxManager.generateConfig(env);
+                    sbxProcess = startSingBox(configPath);
+                } catch (Exception e) {
+                    System.err.println("[MONITOR] Failed to restart sing-box: " + e.getMessage());
+                }
+            } else {
+                System.err.println("[MONITOR] Max sing-box restart attempts reached. Giving up.");
+            }
+        }
+
+        // Check cloudflared
+        if (cfProcess != null && !cfProcess.isAlive()) {
+            int exitValue = cfProcess.exitValue();
+            System.err.println("[MONITOR] cloudflared process died (exit=" + exitValue + ")");
+            String disableArgo = env.getOrDefault("DISABLE_ARGO", "false");
+            if ("false".equalsIgnoreCase(disableArgo) && cfRestartCount.get() < MAX_RESTART_ATTEMPTS) {
+                cfRestartCount.incrementAndGet();
+                System.out.println("[MONITOR] Restarting cloudflared (attempt " + cfRestartCount.get() + "/" + MAX_RESTART_ATTEMPTS + ")...");
+                try {
+                    Thread.sleep(RESTART_COOLDOWN_MS);
+                    cfProcess = CloudflaredManager.start(env, () -> {
+                        try {
+                            SubscriptionGenerator.generate(env);
+                        } catch (Exception e) {
+                            System.err.println("[CF] Failed to regenerate subscription: " + e.getMessage());
+                        }
+                    });
+                } catch (Exception e) {
+                    System.err.println("[MONITOR] Failed to restart cloudflared: " + e.getMessage());
+                }
+            } else {
+                System.err.println("[MONITOR] Max cloudflared restart attempts reached or Argo disabled. Giving up.");
+            }
+        }
     }
 
     private static void stopServices() {
+        if (healthMonitor != null) {
+            healthMonitor.shutdownNow();
+        }
         if (sbxProcess != null && sbxProcess.isAlive()) {
             sbxProcess.destroy();
             System.out.println(ConsoleUtils.ANSI_RED + "sing-box process terminated" + ConsoleUtils.ANSI_RESET);

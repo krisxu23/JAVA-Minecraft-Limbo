@@ -341,6 +341,23 @@ public enum State {
                     map(0x54, V1_20_3, V1_20_3),
                     map(0x56, V1_20_5, V1_21)
             );
+            clientBound.register(PacketTimeUpdate::new,
+                    map(0x03, V1_7_2, V1_8),
+                    map(0x44, V1_9, V1_12_2),
+                    map(0x47, V1_13, V1_13_2),
+                    map(0x4B, V1_14, V1_14_4),
+                    map(0x4C, V1_15, V1_15_2),
+                    map(0x4B, V1_16, V1_16_1),
+                    map(0x4E, V1_16_2, V1_16_4),
+                    map(0x56, V1_17, V1_18_2),
+                    map(0x58, V1_19, V1_19),
+                    map(0x5B, V1_19_1, V1_19_1),
+                    map(0x59, V1_19_3, V1_19_3),
+                    map(0x5D, V1_19_4, V1_20),
+                    map(0x5E, V1_20_2, V1_20_2),
+                    map(0x60, V1_20_3, V1_20_3),
+                    map(0x62, V1_20_5, V1_21)
+            );
             clientBound.register(PacketGameEvent::new,
                     map(0x20, V1_20_3, V1_20_3),
                     map(0x22, V1_20_5, V1_21)

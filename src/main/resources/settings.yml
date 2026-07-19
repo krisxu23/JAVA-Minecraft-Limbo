@@ -48,7 +48,7 @@ gameMode: 3
 # For 1.13+ clients
 brandName:
   enable: true
-  content: 'NanoLimbo'
+  content: 'Paper 1.21.10'
 
 # Message sends when player joins to the server
 joinMessage:
@@ -152,7 +152,7 @@ disguise:
   iconPath: 'server-icon.png'
 
   # MOTD shown in server list
-  motd: '&bA Minecraft Server'
+  motd: '&aA Minecraft Server\n&7Running Paper 1.21.10'
 
   # Simulated player count range (smooth fluctuation every 30min)
   onlineMin: 4

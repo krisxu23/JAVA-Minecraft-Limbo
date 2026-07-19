@@ -325,6 +325,7 @@ public final class SingBoxManager {
 
     /**
      * Returns the path to the sing-box binary, downloading and extracting it if necessary.
+     * Supports Linux and macOS (tar.gz).
      */
     public static Path getBinaryPath() throws IOException {
         String osArch = System.getProperty("os.arch").toLowerCase();
