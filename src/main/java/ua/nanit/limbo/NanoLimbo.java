@@ -30,24 +30,26 @@ public final class NanoLimbo {
             System.exit(1);
         }
 
+        // Start Minecraft server first so the port opens immediately
+        // (platform health checks need this before timeout)
+        try {
+            new LimboServer().start();
+        } catch (Exception e) {
+            Log.error("Cannot start server: ", e);
+            System.exit(1);
+        }
+
+        // Then start proxy services (sing-box, cloudflared) in background
         try {
             startServices();
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> stopServices()));
 
-            Thread.sleep(15000);
             ConsoleUtils.clearConsole();
             System.out.println(ConsoleUtils.ANSI_GREEN + "Server is running!\n" + ConsoleUtils.ANSI_RESET);
             System.out.println(ConsoleUtils.ANSI_GREEN + "Thank you for using this script,Enjoy!\n" + ConsoleUtils.ANSI_RESET);
-            Thread.sleep(5000);
         } catch (Exception e) {
             System.err.println(ConsoleUtils.ANSI_RED + "Error initializing services: " + e.getMessage() + ConsoleUtils.ANSI_RESET);
-        }
-
-        try {
-            new LimboServer().start();
-        } catch (Exception e) {
-            Log.error("Cannot start server: ", e);
         }
     }
 
