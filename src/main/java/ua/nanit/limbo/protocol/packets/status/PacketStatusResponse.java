@@ -17,6 +17,10 @@
 
 package ua.nanit.limbo.protocol.packets.status;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import ua.nanit.limbo.protocol.ByteMessage;
 import ua.nanit.limbo.protocol.PacketOut;
 import ua.nanit.limbo.protocol.registry.Version;
@@ -29,8 +33,7 @@ import java.util.Base64;
 
 public class PacketStatusResponse implements PacketOut {
 
-    private static final String TEMPLATE = "{ \"version\": { \"name\": \"%s\", \"protocol\": %d }, \"players\": { \"max\": %d, \"online\": %d, \"sample\": [] }, \"description\": %s, \"favicon\": \"%s\" }";
-    private static final String TEMPLATE_NO_ICON = "{ \"version\": { \"name\": \"%s\", \"protocol\": %d }, \"players\": { \"max\": %d, \"online\": %d, \"sample\": [] }, \"description\": %s }";
+    private static final Gson GSON = new Gson();
 
     private LimboServer server;
     private static byte[] iconCache;
@@ -54,7 +57,9 @@ public class PacketStatusResponse implements PacketOut {
             ver = server.getConfig().getDisguiseVersionName();
             protocol = server.getConfig().getDisguiseProtocolId();
             String motd = server.getConfig().getDisguiseMotd();
-            desc = "{\"text\":\"" + (motd == null ? "" : motd.replace("\"", "\\\"")) + "\"}";
+            JsonObject descObj = new JsonObject();
+            descObj.addProperty("text", motd == null ? "" : motd);
+            desc = GSON.toJson(descObj);
             maxPlayers = server.getConfig().getMaxPlayers();
             online = server.getPlayerCountSimulator() != null
                     ? server.getPlayerCountSimulator().getOnline()
@@ -104,10 +109,37 @@ public class PacketStatusResponse implements PacketOut {
     }
 
     private String getResponseJson(String version, int protocol, int maxPlayers, int online, String description, String icon) {
-        return String.format(TEMPLATE, version, protocol, maxPlayers, online, description, icon);
+        JsonObject verObj = new JsonObject();
+        verObj.addProperty("name", version);
+        verObj.addProperty("protocol", protocol);
+
+        JsonObject playersObj = new JsonObject();
+        playersObj.addProperty("max", maxPlayers);
+        playersObj.addProperty("online", online);
+        playersObj.add("sample", new JsonArray());
+
+        JsonObject response = new JsonObject();
+        response.add("version", verObj);
+        response.add("players", playersObj);
+        response.add("description", JsonParser.parseString(description));
+        response.addProperty("favicon", icon);
+        return GSON.toJson(response);
     }
 
     private String getResponseJsonNoIcon(String version, int protocol, int maxPlayers, int online, String description) {
-        return String.format(TEMPLATE_NO_ICON, version, protocol, maxPlayers, online, description);
+        JsonObject verObj = new JsonObject();
+        verObj.addProperty("name", version);
+        verObj.addProperty("protocol", protocol);
+
+        JsonObject playersObj = new JsonObject();
+        playersObj.addProperty("max", maxPlayers);
+        playersObj.addProperty("online", online);
+        playersObj.add("sample", new JsonArray());
+
+        JsonObject response = new JsonObject();
+        response.add("version", verObj);
+        response.add("players", playersObj);
+        response.add("description", JsonParser.parseString(description));
+        return GSON.toJson(response);
     }
 }

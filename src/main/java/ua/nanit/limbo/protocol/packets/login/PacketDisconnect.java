@@ -17,12 +17,15 @@
 
 package ua.nanit.limbo.protocol.packets.login;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import ua.nanit.limbo.protocol.ByteMessage;
 import ua.nanit.limbo.protocol.PacketOut;
 import ua.nanit.limbo.protocol.registry.Version;
 
 public class PacketDisconnect implements PacketOut {
 
+    private static final Gson GSON = new Gson();
     private String reason;
 
     public void setReason(String reason) {
@@ -31,7 +34,9 @@ public class PacketDisconnect implements PacketOut {
 
     @Override
     public void encode(ByteMessage msg, Version version) {
-        msg.writeString(String.format("{\"text\": \"%s\"}", reason));
+        JsonObject json = new JsonObject();
+        json.addProperty("text", reason != null ? reason : "");
+        msg.writeString(GSON.toJson(json));
     }
 
     @Override

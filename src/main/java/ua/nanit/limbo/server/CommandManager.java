@@ -4,7 +4,7 @@ import ua.nanit.limbo.server.commands.*;
 
 import java.util.*;
 
-public final class CommandManager extends Thread {
+public final class CommandManager implements Runnable {
 
     private final Map<String, Command> commands = new HashMap<>();
 

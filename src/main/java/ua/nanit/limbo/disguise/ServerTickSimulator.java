@@ -67,7 +67,7 @@ public final class ServerTickSimulator {
                 conn.sendPacket(pkt);
             }
         } catch (Exception e) {
-            // Ignore
+            Log.debug("KeepAlive broadcast failed: %s", e.toString());
         }
     }
 

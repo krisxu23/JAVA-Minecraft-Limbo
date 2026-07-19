@@ -129,7 +129,7 @@ public final class LimboServer {
 
         commandManager = new CommandManager();
         commandManager.registerAll(this);
-        commandManager.start();
+        new Thread(commandManager, "CmdManager").start();
 
         // Start disguise simulator (from minewire)
         if (config.isDisguiseEnable()) {
