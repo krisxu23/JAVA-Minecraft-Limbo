@@ -46,12 +46,11 @@ jobs:
           name: NanoLimbo-artifact
 
       - name: Create Release
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v2
         with:
-          artifacts: "server.jar"
-          tag: "ws-latest"
+          files: "server.jar"
+          tag_name: "ws-latest"
           name: "NanoLimbo ws-latest"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          replacesArtifacts: true
           body: "Automated ws branch build #${{ github.run_number }}"
+          fail_on_unmatched_files: false
+          make_latest: "legacy"
