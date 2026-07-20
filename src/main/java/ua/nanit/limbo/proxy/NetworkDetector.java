@@ -20,31 +20,31 @@ public final class NetworkDetector {
      * with automatic fallback.
      */
     public static String getPublicIP() {
-        try {
-            String[] services = {
-                "https://api.ipify.org",
-                "https://ifconfig.me",
-                "https://icanhazip.com",
-                "https://ipinfo.io/ip"
-            };
-            for (String service : services) {
+        String[] services = {
+            "https://api.ipify.org",
+            "https://ifconfig.me",
+            "https://icanhazip.com",
+            "https://ipinfo.io/ip"
+        };
+        for (String service : services) {
+            try {
+                URL url = new URL(service);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 try {
-                    URL url = new URL(service);
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setConnectTimeout(5000);
                     conn.setReadTimeout(5000);
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    String ip = reader.readLine().trim();
-                    reader.close();
-                    if (ip.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) {
-                        return ip;
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+                        String ip = reader.readLine().trim();
+                        if (ip.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) {
+                            return ip;
+                        }
                     }
-                } catch (Exception e) {
-                    // Try next service
+                } finally {
+                    conn.disconnect();
                 }
+            } catch (Exception e) {
+                System.err.println("[SBX] IP service " + service + " failed: " + e.getMessage());
             }
-        } catch (Exception e) {
-            System.err.println("[SBX] Failed to detect public IP: " + e.getMessage());
         }
         return "127.0.0.1";
     }
@@ -59,13 +59,11 @@ public final class NetworkDetector {
             "www.apple.com", "www.joom.com", "www.amazon.com"
         };
         for (String host : hosts) {
-            try {
-                Socket socket = new Socket();
+            try (Socket socket = new Socket()) {
                 socket.connect(new InetSocketAddress(host, 443), 2000);
-                socket.close();
                 return host;
             } catch (Exception e) {
-                // try next host
+                System.err.println("[SBX] Reality dest " + host + " unreachable: " + e.getMessage());
             }
         }
         return "www.iij.ad.jp"; // all failed, use fallback default
@@ -76,16 +74,12 @@ public final class NetworkDetector {
      * Returns "prefer_ipv4" or "prefer_ipv6".
      */
     public static String detectDNSStrategy() {
-        try {
-            Socket s = new Socket();
+        try (Socket s = new Socket()) {
             s.connect(new InetSocketAddress("8.8.8.8", 53), 2000);
-            s.close();
             return "prefer_ipv4";
         } catch (Exception e) {
-            try {
-                Socket s = new Socket();
+            try (Socket s = new Socket()) {
                 s.connect(new InetSocketAddress("2001:4860:4860::8888", 53), 2000);
-                s.close();
                 return "prefer_ipv6";
             } catch (Exception e2) {
                 return "prefer_ipv4";

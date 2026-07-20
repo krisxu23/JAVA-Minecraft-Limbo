@@ -52,14 +52,24 @@ public final class SingBoxManager {
                 ProcessBuilder pb1 = new ProcessBuilder("openssl", "ecparam", "-genkey", "-name", "prime256v1",
                     "-out", keyFile.toAbsolutePath().toString());
                 pb1.redirectErrorStream(true);
-                pb1.start().waitFor();
+                Process keyGen = pb1.start();
+                int keyExit = keyGen.waitFor();
+                if (keyExit != 0) {
+                    throw new IOException("openssl ecparam exited with code " + keyExit);
+                }
+
                 ProcessBuilder pb2 = new ProcessBuilder("openssl", "req", "-new", "-x509", "-days", "3650",
                     "-key", keyFile.toAbsolutePath().toString(),
                     "-out", certFile.toAbsolutePath().toString(),
                     "-subj", "/CN=bing.com");
                 pb2.redirectErrorStream(true);
-                pb2.start().waitFor();
+                Process certGen = pb2.start();
+                int certExit = certGen.waitFor();
+                if (certExit != 0) {
+                    throw new IOException("openssl req exited with code " + certExit);
+                }
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new IOException("Interrupted while generating certificate");
             }
         }

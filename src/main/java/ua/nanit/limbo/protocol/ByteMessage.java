@@ -26,11 +26,6 @@ import ua.nanit.limbo.protocol.registry.Version;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.GatheringByteChannel;
-import java.nio.channels.ScatteringByteChannel;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -288,7 +283,7 @@ public class ByteMessage {
 
     private static void writeFixedBitSet(BitSet bits, int size, ByteBuf buf) {
         if (bits.length() > size) {
-            throw new StackOverflowError("BitSet too large (expected " + size + " got " + bits.size() + ")");
+            throw new IllegalArgumentException("BitSet too large (expected " + size + " got " + bits.size() + ")");
         }
         buf.writeBytes(Arrays.copyOf(bits.toByteArray(), (size + 8) >> 3));
     }

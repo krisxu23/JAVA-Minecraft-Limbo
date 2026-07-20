@@ -42,7 +42,7 @@ public class Log {
     }
 
     public static void debug(Object msg, Object... args) {
-        if (debugLevel >= 1) {
+        if (debugLevel >= 3) {
             printFormatted(Level.FINE, msg, args);
         }
     }
@@ -74,6 +74,6 @@ public class Log {
     }
 
     public static boolean isDebug() {
-        return debugLevel >= 1;
+        return debugLevel >= 3;
     }
 }

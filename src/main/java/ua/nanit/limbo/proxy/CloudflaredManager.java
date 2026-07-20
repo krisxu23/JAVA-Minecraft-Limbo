@@ -77,7 +77,7 @@ public final class CloudflaredManager {
                         }
                     }
                 } catch (Exception e) {
-                    // Process may have been destroyed
+                    System.err.println("[CF] Parser thread error: " + e.getMessage());
                 }
             });
             parserThread.setDaemon(true);

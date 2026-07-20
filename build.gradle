@@ -47,6 +47,13 @@ shadowJar {
 
     minimize {
         exclude(dependency('ch.qos.logback:logback-classic:.*:.*'))
+        exclude(dependency('ch.qos.logback:logback-core:.*:.*'))
+        exclude(dependency('org.slf4j:slf4j-api:.*:.*'))
+        exclude(dependency('org.spongepowered:configurate-yaml:.*:.*'))
+        exclude(dependency('io.netty:netty-all:.*:.*'))
+        exclude(dependency('net.kyori:adventure-nbt:.*:.*'))
+        exclude(dependency('com.grack:nanojson:.*:.*'))
+        exclude(dependency('com.google.code.gson:gson:.*:.*'))
     }
 }
 

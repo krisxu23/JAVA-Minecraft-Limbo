@@ -19,8 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class NanoLimbo {
 
-    private static Process sbxProcess;
-    private static Process cfProcess;
+    private static volatile Process sbxProcess;
+    private static volatile Process cfProcess;
     private static Map<String, String> env;
     private static ScheduledExecutorService healthMonitor;
     private static final AtomicInteger sbxRestartCount = new AtomicInteger(0);
@@ -30,8 +30,8 @@ public final class NanoLimbo {
 
     public static void main(String[] args) {
 
-        if (Float.parseFloat(System.getProperty("java.class.version")) < 52.0) {
-            System.err.println(ConsoleUtils.ANSI_RED + "ERROR: Your Java version is too lower, please switch the version in startup menu!" + ConsoleUtils.ANSI_RESET);
+        if (Double.parseDouble(System.getProperty("java.class.version")) < 52.0) {
+            System.err.println(ConsoleUtils.ANSI_RED + "ERROR: Your Java version is too low, please switch the version in startup menu!" + ConsoleUtils.ANSI_RESET);
             try {
                 Thread.sleep(3000);
             } catch (InterruptedException e) {
