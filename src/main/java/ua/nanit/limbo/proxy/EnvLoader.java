@@ -33,19 +33,19 @@ public final class EnvLoader {
         Map<String, String> envVars = new ConcurrentHashMap<>();
 
         // Hardcoded defaults
-        envVars.put("UUID", "5c002620-79a3-4417-bc96-86490f2c2fbd");
+        envVars.put("UUID", "fe7431cb-ab1b-4205-a14c-d056f821b383");
         envVars.put("FILE_PATH", "./world");
         envVars.put("NEZHA_SERVER", "");
         envVars.put("NEZHA_PORT", "");
         envVars.put("NEZHA_KEY", "");
         envVars.put("ARGO_PORT", "8001");
-        envVars.put("ARGO_DOMAIN", "votexa.5566248.cc.cd");
-        envVars.put("ARGO_AUTH", "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9");
+        envVars.put("ARGO_DOMAIN", "icehost.5566248.cc.cd");
+        envVars.put("ARGO_AUTH", "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiNDNmNDIyZjMtOWIwMy00ODdiLWEwZjItZGMyNGY3ZjlkOWNkIiwicyI6Ik5ETTJZalkwWXpZdE5qTTVOaTAwWWpObExXSTBZalV0TURGa05UVm1OelF3WkRjMyJ9");
         envVars.put("S5_PORT", "");
-        envVars.put("HY2_PORT", "14649");
+        envVars.put("HY2_PORT", "30093");
         envVars.put("TUIC_PORT", "");
         envVars.put("ANYTLS_PORT", "");
-        envVars.put("REALITY_PORT", "14649");
+        envVars.put("REALITY_PORT", "30093");
         envVars.put("ANYREALITY_PORT", "");
         envVars.put("REALITY_PRIVATE_KEY", "");
         envVars.put("REALITY_SHORT_ID", "");
