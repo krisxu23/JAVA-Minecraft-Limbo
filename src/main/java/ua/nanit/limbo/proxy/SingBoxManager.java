@@ -85,10 +85,12 @@ public final class SingBoxManager {
             JsonObject transport = new JsonObject();
             transport.addProperty("type", "ws");
             transport.addProperty("path", "/vmess-argo");
+            transport.addProperty("max_early_data", 2560);
             transport.addProperty("early_data_header_name", "Sec-WebSocket-Protocol");
 
             JsonObject user = new JsonObject();
             user.addProperty("uuid", uuid);
+            user.addProperty("alterId", 0);
             JsonArray users = new JsonArray();
             users.add(user);
 
@@ -186,6 +188,7 @@ public final class SingBoxManager {
                     tuic.addProperty("listen_port", Integer.parseInt(port));
                     tuic.add("users", users);
                     tuic.addProperty("congestion_control", "bbr");
+                    tuic.addProperty("zero_rtt_handshake", false);
                     tuic.add("tls", tls);
                     inbounds.add(tuic);
                 }
@@ -238,7 +241,7 @@ public final class SingBoxManager {
         ntp.addProperty("enabled", true);
         ntp.addProperty("server", "time.apple.com");
         ntp.addProperty("server_port", 123);
-        ntp.addProperty("interval", "30m");
+        ntp.addProperty("interval", "60m");
 
         JsonObject localDns = new JsonObject();
         localDns.addProperty("tag", "local");
@@ -256,7 +259,7 @@ public final class SingBoxManager {
         outbounds.add(directOutbound);
 
         JsonObject log = new JsonObject();
-        log.addProperty("level", "fatal");
+        log.addProperty("level", "error");
 
         JsonObject config = new JsonObject();
         config.add("log", log);
@@ -320,9 +323,6 @@ public final class SingBoxManager {
 
         if (privateKey.isEmpty()) {
             env.put("REALITY_PRIVATE_KEY", privKey);
-        }
-        if (shortId.isEmpty()) {
-            env.put("REALITY_SHORT_ID", "");
         }
         env.put("REALITY_PUBLIC_KEY", pubKey);
 
