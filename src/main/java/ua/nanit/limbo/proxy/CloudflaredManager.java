@@ -10,25 +10,89 @@ import java.util.regex.Pattern;
 
 /**
  * Manages cloudflared (Argo Tunnel): downloads the binary, starts fixed-tunnel
- * or quick-tunnel mode, and discovers the trycloudflare.com domain.
- * Extracted from NanoLimbo.java during refactoring.
+ * or quick-tunnel mode, discovers the trycloudflare.com domain,
+ * and runs the process with a self-healing watchdog.
+ *
+ * The watchdog restarts cloudflared on non-zero exit (3s delay) and
+ * stops on clean exit (0) or JVM shutdown.
  */
 public final class CloudflaredManager {
+
+    private static volatile Process currentProcess;
 
     private static final Pattern QUICK_TUNNEL_PATTERN = Pattern.compile("https://[a-z0-9-]+\\.trycloudflare\\.com");
 
     private CloudflaredManager() {}
 
+    // ==================== Self-Healing Watchdog ====================
+
     /**
-     * Starts cloudflared Argo tunnel. For fixed tunnels (with ARGO_AUTH), the tunnel
+     * Starts cloudflared with a self-healing loop. Blocks until the process
+     * exits cleanly (exit=0) or the current thread is interrupted.
+     * Intended to run on a dedicated daemon thread.
+     *
+     * Subscription is regenerated after the Argo domain is discovered
+     * (quick tunnel) or immediately (fixed tunnel with known domain).
+     */
+    public static void runWithSelfHealing(Map<String, String> env) {
+        Runnable onDomainDiscovered = () -> {
+            try {
+                SubscriptionGenerator.generate(env);
+            } catch (Exception e) {
+                System.err.println("[CF] Failed to regenerate subscription: " + e.getMessage());
+            }
+        };
+
+        while (true) {
+            try {
+                currentProcess = startOnce(env, onDomainDiscovered);
+                int exitCode = currentProcess.waitFor();
+                if (exitCode == 0) {
+                    System.out.println("[CF] cloudflared exited cleanly (exit=0), stopping watchdog");
+                    break;
+                }
+                System.err.println("[CF] cloudflared died (exit=" + exitCode + "), restarting in 3s...");
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                System.err.println("[CF] Watchdog interrupted, stopping");
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                System.err.println("[CF] Error: " + e.getMessage() + ", restarting in 10s...");
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Terminates the current cloudflared process (if alive).
+     * Called from the JVM shutdown hook.
+     */
+    public static void shutdown() {
+        Process p = currentProcess;
+        if (p != null && p.isAlive()) {
+            System.out.println("[CF] Terminating cloudflared...");
+            p.destroy();
+        }
+    }
+
+    // ==================== One-shot Start ====================
+
+    /**
+     * Starts cloudflared Argo tunnel once. For fixed tunnels (with ARGO_AUTH), the tunnel
      * starts immediately. For quick tunnels (no token), a daemon thread monitors
      * output to discover the *.trycloudflare.com domain.
      *
      * @param env                   environment configuration map (ARGO_DOMAIN may be written for quick tunnel)
      * @param onDomainDiscovered    callback invoked after the Argo domain is known (for subscription regeneration)
-     * @return the cloudflared Process handle (for lifecycle management)
+     * @return the cloudflared Process handle
      */
-    public static Process start(Map<String, String> env, Runnable onDomainDiscovered) throws Exception {
+    private static Process startOnce(Map<String, String> env, Runnable onDomainDiscovered) throws Exception {
         Path cfPath = getBinaryPath(env);
         String argoAuth = env.getOrDefault("ARGO_AUTH", "");
         String argoPort = env.getOrDefault("ARGO_PORT", "8001");

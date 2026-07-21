@@ -12,14 +12,76 @@ import java.util.stream.Stream;
 
 /**
  * Manages sing-box proxy: downloads the binary, generates Reality keys,
- * creates TLS certificates, and builds the sing-box configuration JSON.
- * Extracted from NanoLimbo.java during refactoring.
+ * creates TLS certificates, builds the sing-box configuration JSON,
+ * and runs the process with a self-healing watchdog.
+ *
+ * The watchdog restarts sing-box on non-zero exit (3s delay) and
+ * stops on clean exit (0) or JVM shutdown.
  */
 public final class SingBoxManager {
+
+    private static volatile Process currentProcess;
 
     private SingBoxManager() {}
 
     private static final Gson GSON = new Gson();
+
+    // ==================== Self-Healing Watchdog ====================
+
+    /**
+     * Starts sing-box with a self-healing loop. Blocks until the process
+     * exits cleanly (exit=0) or the current thread is interrupted.
+     * Intended to run on a dedicated daemon thread.
+     */
+    public static void runWithSelfHealing(Map<String, String> env) {
+        while (true) {
+            try {
+                Path configPath = generateConfig(env);
+                currentProcess = startProcess(configPath);
+                int exitCode = currentProcess.waitFor();
+                if (exitCode == 0) {
+                    System.out.println("[SBX] sing-box exited cleanly (exit=0), stopping watchdog");
+                    break;
+                }
+                System.err.println("[SBX] sing-box died (exit=" + exitCode + "), restarting in 3s...");
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                System.err.println("[SBX] Watchdog interrupted, stopping");
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                System.err.println("[SBX] Error: " + e.getMessage() + ", restarting in 10s...");
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+    }
+
+    private static Process startProcess(Path configPath) throws Exception {
+        System.out.println("[SBX] Starting sing-box...");
+        ProcessBuilder pb = new ProcessBuilder(
+                getBinaryPath().toString(),
+                "run", "-c", configPath.toAbsolutePath().toString());
+        pb.redirectErrorStream(true);
+        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+        return pb.start();
+    }
+
+    /**
+     * Terminates the current sing-box process (if alive).
+     * Called from the JVM shutdown hook.
+     */
+    public static void shutdown() {
+        Process p = currentProcess;
+        if (p != null && p.isAlive()) {
+            System.out.println("[SBX] Terminating sing-box...");
+            p.destroy();
+        }
+    }
 
     // ==================== Sing-Box Config Generation ====================
 
