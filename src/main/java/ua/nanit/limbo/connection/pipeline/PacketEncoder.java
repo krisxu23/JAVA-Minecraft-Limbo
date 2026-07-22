@@ -30,6 +30,7 @@ import ua.nanit.limbo.server.Log;
 public class PacketEncoder extends MessageToByteEncoder<Packet> {
 
     private State.PacketRegistry registry;
+    private State currentState;
     private Version version;
 
     public PacketEncoder() {
