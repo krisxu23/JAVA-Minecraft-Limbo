@@ -1,4 +1,4 @@
-﻿package ua.nanit.limbo.proxy;
+package ua.nanit.limbo.proxy;
 
 import java.io.*;
 import java.net.URL;
