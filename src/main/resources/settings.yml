@@ -4,7 +4,7 @@
 
 # Server's host address and port. Set ip empty to use public address
 bind:
-  ip: 'localhost'
+  ip: ''
   port: 25565
 
 # Max number of players can join to server

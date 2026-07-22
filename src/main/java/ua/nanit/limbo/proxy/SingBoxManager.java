@@ -160,7 +160,7 @@ public final class SingBoxManager {
             JsonObject vmessInbound = new JsonObject();
             vmessInbound.addProperty("type", "vmess");
             vmessInbound.addProperty("tag", "vmess-ws");
-            vmessInbound.addProperty("listen", "::");
+            vmessInbound.addProperty("listen", "0.0.0.0");
             vmessInbound.addProperty("listen_port", Integer.parseInt(argoPort));
             vmessInbound.add("users", users);
             vmessInbound.add("transport", transport);
@@ -181,7 +181,7 @@ public final class SingBoxManager {
                     JsonObject s5 = new JsonObject();
                     s5.addProperty("type", "socks");
                     s5.addProperty("tag", "socks5-in");
-                    s5.addProperty("listen", "::");
+                    s5.addProperty("listen", "0.0.0.0");
                     s5.addProperty("listen_port", Integer.parseInt(port));
                     s5.add("users", users);
                     inbounds.add(s5);
@@ -213,7 +213,7 @@ public final class SingBoxManager {
                     JsonObject h2 = new JsonObject();
                     h2.addProperty("type", "hysteria2");
                     h2.addProperty("tag", "hysteria2");
-                    h2.addProperty("listen", "::");
+                    h2.addProperty("listen", "0.0.0.0");
                     h2.addProperty("listen_port", Integer.parseInt(port));
                     h2.add("users", users);
                     h2.addProperty("ignore_client_bandwidth", false);
@@ -247,7 +247,7 @@ public final class SingBoxManager {
                     JsonObject tuic = new JsonObject();
                     tuic.addProperty("type", "tuic");
                     tuic.addProperty("tag", "tuic");
-                    tuic.addProperty("listen", "::");
+                    tuic.addProperty("listen", "0.0.0.0");
                     tuic.addProperty("listen_port", Integer.parseInt(port));
                     tuic.add("users", users);
                     tuic.addProperty("congestion_control", "bbr");
@@ -260,7 +260,7 @@ public final class SingBoxManager {
 
         // VLESS Reality inbound
         if (!realityPort.isEmpty() && !realityPrivateKey.isEmpty()) {
-            String realityServer = env.get("REALITY_DEST");
+            String realityServer = env.getOrDefault("REALITY_DEST", "www.google.com");
             for (String port : realityPort.split(",")) {
                 port = port.trim();
                 if (!port.isEmpty()) {
@@ -290,7 +290,7 @@ public final class SingBoxManager {
                     JsonObject vless = new JsonObject();
                     vless.addProperty("type", "vless");
                     vless.addProperty("tag", "vless-reality");
-                    vless.addProperty("listen", "::");
+                    vless.addProperty("listen", "0.0.0.0");
                     vless.addProperty("listen_port", Integer.parseInt(port));
                     vless.add("users", users);
                     vless.add("tls", tls);
@@ -429,9 +429,27 @@ public final class SingBoxManager {
 
         if (!binPath.toFile().exists()) {
             Log.info("[SBX] Downloading sing-box " + version + " (" + arch + ")...");
-            try (InputStream in = new URL(url).openStream()) {
-                Files.copy(in, tarPath, StandardCopyOption.REPLACE_EXISTING);
+            boolean downloaded = false;
+            IOException lastErr = null;
+            String[] mirrors = {"https://mirror.ghproxy.com/" + url, "https://ghproxy.net/" + url, url};
+            Log.info("[SBX] Attempting download (" + mirrors.length + " mirrors)...");
+            for (int m = 0; m < mirrors.length && !downloaded; m++) {
+                for (int attempt = 1; attempt <= 3 && !downloaded; attempt++) {
+                    try {
+                        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new URL(mirrors[m]).openConnection();
+                        try {
+                            conn.setConnectTimeout(15000); conn.setReadTimeout(60000);
+                            try (InputStream in = conn.getInputStream()) { Files.copy(in, tarPath, StandardCopyOption.REPLACE_EXISTING); }
+                            downloaded = true;
+                            Log.info("[SBX] Download succeeded from mirror " + (m+1) + " attempt " + attempt);
+                        } finally { conn.disconnect(); }
+                    } catch (IOException e) {
+                        lastErr = e;
+                        if (attempt < 3) Thread.sleep(3000);
+                    }
+                }
             }
+            if (!downloaded) { throw new IOException("[SBX] Failed to download sing-box after all mirrors/retries", lastErr); }
 
             Path extractDir = Paths.get(System.getProperty("java.io.tmpdir"), "sbx_extract_" + System.currentTimeMillis());
             Files.createDirectories(extractDir);
