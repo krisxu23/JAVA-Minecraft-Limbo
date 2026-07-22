@@ -445,7 +445,9 @@ public final class SingBoxManager {
                         } finally { conn.disconnect(); }
                     } catch (IOException e) {
                         lastErr = e;
-                        if (attempt < 3) Thread.sleep(3000);
+                        if (attempt < 3) {
+                            try { Thread.sleep(3000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        }
                     }
                 }
             }
