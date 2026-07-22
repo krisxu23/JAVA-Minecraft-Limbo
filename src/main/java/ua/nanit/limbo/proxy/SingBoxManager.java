@@ -552,4 +552,28 @@ public final class SingBoxManager {
     private static byte[] decodeBase64Url(String str) {
         return Base64.getUrlDecoder().decode(str);
     }
+
+    private static String randomShortId() {
+        byte[] sid = new byte[8];
+        RANDOM.nextBytes(sid);
+        StringBuilder sb = new StringBuilder(16);
+        for (byte b : sid) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
+    private static String sha256Hex(Path file) throws IOException {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(Files.readAllBytes(file));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 not available", e);
+        }
+    }
 }
