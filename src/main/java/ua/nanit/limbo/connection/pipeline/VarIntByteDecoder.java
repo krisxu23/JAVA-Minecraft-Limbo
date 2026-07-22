@@ -21,6 +21,9 @@ import io.netty.util.ByteProcessor;
 
 public class VarIntByteDecoder implements ByteProcessor {
 
+    /** Maximum number of bytes a Minecraft VarInt can occupy (5 * 7 = 35 bits, enough for 32-bit int). */
+    private static final int MAX_VARINT_BYTES = 5;
+
     private int readVarInt;
     private int bytesRead;
     private DecodeResult result = DecodeResult.TOO_SHORT;
@@ -28,11 +31,12 @@ public class VarIntByteDecoder implements ByteProcessor {
     @Override
     public boolean process(byte k) {
         readVarInt |= (k & 0x7F) << bytesRead++ * 7;
-        if (bytesRead > 3) {
+        if (bytesRead > MAX_VARINT_BYTES) {
             result = DecodeResult.TOO_BIG;
             return false;
         }
-        if ((k & 0x80) != 128) {
+        // Continuation bit: 0 = last byte, 1 = more bytes follow
+        if ((k & 0x80) == 0) {
             result = DecodeResult.SUCCESS;
             return false;
         }

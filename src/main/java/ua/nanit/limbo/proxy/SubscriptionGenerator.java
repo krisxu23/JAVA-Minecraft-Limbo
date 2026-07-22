@@ -8,6 +8,7 @@ import java.security.MessageDigest;
 import java.security.cert.*;
 import java.util.Base64;
 import java.util.Map;
+import ua.nanit.limbo.server.Log;
 
 /**
  * Generates proxy subscription links (VMess, Hysteria2, TUIC, VLESS Reality, SOCKS5)
@@ -55,7 +56,7 @@ public final class SubscriptionGenerator {
                 }
                 fingerprint = sb.toString();
             } catch (Exception e) {
-                System.err.println("[SBX] Failed to extract cert fingerprint: " + e.getMessage());
+                Log.warn("[SBX] Failed to extract cert fingerprint: " + e.getMessage());
             }
         }
 
@@ -137,18 +138,18 @@ public final class SubscriptionGenerator {
         }
 
         if (sub.length() > 0) {
-            System.out.println("\n========== Node Links ==========");
-            System.out.print(sub.toString());
-            System.out.println("================================");
+            Log.info("\n========== Node Links ==========");
+            Log.info(sub.toString());
+            Log.info("================================");
 
             String base64 = Base64.getEncoder().encodeToString(sub.toString().getBytes("UTF-8"));
-            System.out.println("\n========== Subscription (Base64) ==========");
-            System.out.println(base64);
-            System.out.println("============================================\n");
+            Log.info("\n========== Subscription (Base64) ==========");
+            Log.info(base64);
+            Log.info("============================================\n");
 
             Path subFile = Paths.get("sub.txt");
             Files.write(subFile, sub.toString().getBytes("UTF-8"));
-            System.out.println("Subscription saved to: sub.txt");
+            Log.info("Subscription saved to: sub.txt");
         }
     }
 }

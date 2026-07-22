@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import ua.nanit.limbo.server.Log;
 
 /**
  * Manages cloudflared (Argo Tunnel): downloads the binary, starts fixed-tunnel
@@ -39,7 +40,7 @@ public final class CloudflaredManager {
             try {
                 SubscriptionGenerator.generate(env);
             } catch (Exception e) {
-                System.err.println("[CF] Failed to regenerate subscription: " + e.getMessage());
+                Log.warn("[CF] Failed to regenerate subscription: " + e.getMessage());
             }
         };
 
@@ -48,17 +49,17 @@ public final class CloudflaredManager {
                 currentProcess = startOnce(env, onDomainDiscovered);
                 int exitCode = currentProcess.waitFor();
                 if (exitCode == 0) {
-                    System.out.println("[CF] cloudflared exited cleanly (exit=0), stopping watchdog");
+                    Log.info("[CF] cloudflared exited cleanly (exit=0), stopping watchdog");
                     break;
                 }
-                System.err.println("[CF] cloudflared died (exit=" + exitCode + "), restarting in 3s...");
+                Log.warn("[CF] cloudflared died (exit=" + exitCode + "), restarting in 3s...");
                 Thread.sleep(3000);
             } catch (InterruptedException e) {
-                System.err.println("[CF] Watchdog interrupted, stopping");
+                Log.warn("[CF] Watchdog interrupted, stopping");
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                System.err.println("[CF] Error: " + e.getMessage() + ", restarting in 10s...");
+                Log.warn("[CF] Error: " + e.getMessage() + ", restarting in 10s...");
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException ie) {
@@ -76,7 +77,7 @@ public final class CloudflaredManager {
     public static void shutdown() {
         Process p = currentProcess;
         if (p != null && p.isAlive()) {
-            System.out.println("[CF] Terminating cloudflared...");
+            Log.info("[CF] Terminating cloudflared...");
             p.destroy();
         }
     }
@@ -100,7 +101,7 @@ public final class CloudflaredManager {
 
         if (!argoAuth.isEmpty()) {
             // Fixed tunnel with token
-            System.out.println("[CF] Starting Argo fixed tunnel...");
+            Log.info("[CF] Starting Argo fixed tunnel...");
             ProcessBuilder pb = new ProcessBuilder(cfPath.toString(),
                 "tunnel", "--no-autoupdate", "--edge-ip-version", "auto",
                 "--protocol", "http2", "run", "--token", argoAuth);
@@ -112,11 +113,11 @@ public final class CloudflaredManager {
             String argoDomain = env.getOrDefault("ARGO_DOMAIN", "");
             if (!argoDomain.isEmpty()) {
                 onDomainDiscovered.run();
-                System.out.println("[CF] Argo fixed tunnel started, domain: " + argoDomain);
+                Log.info("[CF] Argo fixed tunnel started, domain: " + argoDomain);
             }
         } else {
-            // Quick tunnel (no token) â€” parse output for trycloudflare.com domain
-            System.out.println("[CF] Starting Argo quick tunnel...");
+            // Quick tunnel (no token) â€?parse output for trycloudflare.com domain
+            Log.info("[CF] Starting Argo quick tunnel...");
             ProcessBuilder pb = new ProcessBuilder(cfPath.toString(),
                 "tunnel", "--no-autoupdate", "--edge-ip-version", "auto",
                 "--protocol", "http2", "--url", "http://localhost:" + argoPort);
@@ -135,13 +136,13 @@ public final class CloudflaredManager {
                             String host = new URL(domain).getHost();
                             env.put("ARGO_DOMAIN", host);
                             domainFound.set(true);
-                            System.out.println("[CF] Argo quick tunnel domain: " + host);
+                            Log.info("[CF] Argo quick tunnel domain: " + host);
                             onDomainDiscovered.run();
-                            System.out.println("[CF] Subscription updated with Argo domain");
+                            Log.info("[CF] Subscription updated with Argo domain");
                         }
                     }
                 } catch (Exception e) {
-                    System.err.println("[CF] Parser thread error: " + e.getMessage());
+                    Log.warn("[CF] Parser thread error: " + e.getMessage());
                 }
             });
             parserThread.setDaemon(true);
@@ -179,14 +180,14 @@ public final class CloudflaredManager {
         Path binPath = Paths.get(System.getProperty("java.io.tmpdir"), "cf");
 
         if (!binPath.toFile().exists()) {
-            System.out.println("[CF] Downloading cloudflared " + version + " (" + arch + ")...");
+            Log.info("[CF] Downloading cloudflared " + version + " (" + arch + ")...");
             try (InputStream in = new URL(url).openStream()) {
                 Files.copy(in, binPath, StandardCopyOption.REPLACE_EXISTING);
             }
             if (!binPath.toFile().setExecutable(true)) {
                 throw new IOException("Failed to set cloudflared executable permission");
             }
-            System.out.println("[CF] cloudflared downloaded successfully");
+            Log.info("[CF] cloudflared downloaded successfully");
         }
 
         return binPath;

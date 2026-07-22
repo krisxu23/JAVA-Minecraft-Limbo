@@ -42,16 +42,18 @@ public class PacketEncoder extends MessageToByteEncoder<Packet> {
         if (registry == null) return;
 
         ByteMessage msg = new ByteMessage(out);
-        int packetId;
 
+        Class<? extends Packet> packetClass;
         if (packet instanceof PacketSnapshot) {
-            packetId = registry.getPacketId(((PacketSnapshot)packet).getWrappedPacket().getClass());
+            packetClass = ((PacketSnapshot) packet).getWrappedPacket().getClass();
         } else {
-            packetId = registry.getPacketId(packet.getClass());
+            packetClass = packet.getClass();
         }
 
+        int packetId = registry.getPacketId(packetClass);
+
         if (packetId == -1) {
-            Log.warning("Undefined packet class: %s[0x%s] (%d bytes)", packet.getClass().getName(), Integer.toHexString(packetId), msg.readableBytes());
+            Log.warning("Undefined packet class: %s (not registered in state %s)", packetClass.getName(), stateName());
             return;
         }
 
@@ -64,8 +66,19 @@ public class PacketEncoder extends MessageToByteEncoder<Packet> {
                 Log.debug("Sending %s[0x%s] packet (%d bytes)", packet.toString(), Integer.toHexString(packetId), msg.readableBytes());
             }
         } catch (Exception e) {
-            Log.error("Cannot encode packet 0x%s: %s", Integer.toHexString(packetId), e.getMessage());
+            Log.error("Cannot encode packet 0x%s (%s): %s", Integer.toHexString(packetId), packetClass.getSimpleName(), e.getMessage());
+            ctx.close();
         }
+    }
+
+    private String stateName() {
+        if (registry == null) return "NO_REGISTRY";
+        for (State state : State.values()) {
+            if (state.clientBound == registry || state.serverBound == registry) {
+                return state.name();
+            }
+        }
+        return "UNKNOWN";
     }
 
     public void updateVersion(Version version) {
@@ -75,5 +88,4 @@ public class PacketEncoder extends MessageToByteEncoder<Packet> {
     public void updateState(State state) {
         this.registry = state.clientBound.getRegistry(version);
     }
-
 }

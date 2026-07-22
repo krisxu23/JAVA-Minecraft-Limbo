@@ -36,25 +36,38 @@ public class VarIntFrameDecoder extends ByteToMessageDecoder {
         VarIntByteDecoder reader = new VarIntByteDecoder();
         int varIntEnd = in.forEachByte(reader);
 
-        if (varIntEnd == -1) return;
+        // Handle TOO_BIG regardless of whether forEachByte stopped by exhaustion or by early return
+        if (reader.getResult() == VarIntByteDecoder.DecodeResult.TOO_BIG) {
+            Log.warning("VarInt too large from %s, closing connection", ctx.channel().remoteAddress());
+            ctx.close();
+            in.clear();
+            return;
+        }
+
+        if (varIntEnd == -1) {
+            // Not enough data yet (process() ran through all bytes without returning false)
+            return;
+        }
 
         if (reader.getResult() == VarIntByteDecoder.DecodeResult.SUCCESS) {
             int readVarInt = reader.getReadVarInt();
             int bytesRead = reader.getBytesRead();
             if (readVarInt < 0) {
-                Log.error("[VarIntFrameDecoder] Bad data length");
-            } else if (readVarInt == 0) {
-                in.readerIndex(varIntEnd + 1);
-            } else {
-                int minimumRead = bytesRead + readVarInt;
-
-                if (in.isReadable(minimumRead)) {
-                    out.add(in.retainedSlice(varIntEnd + 1, readVarInt));
-                    in.skipBytes(minimumRead);
-                }
+                Log.error("[VarIntFrameDecoder] Read VarInt is negative, skipping...");
+                in.skipBytes(bytesRead);
+                return;
             }
-        } else if (reader.getResult() == VarIntByteDecoder.DecodeResult.TOO_BIG) {
-            Log.error("[VarIntFrameDecoder] Too big data");
+
+            int packetLength = readVarInt;
+            int packetLengthBytes = bytesRead;
+            int available = in.readableBytes();
+
+            if (available < packetLength) {
+                return;
+            }
+
+            out.add(in.retainedSlice(in.readerIndex(), packetLengthBytes + packetLength));
+            in.skipBytes(packetLengthBytes + packetLength);
         }
     }
 }

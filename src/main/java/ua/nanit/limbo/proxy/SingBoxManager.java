@@ -9,6 +9,7 @@ import java.nio.file.*;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.stream.Stream;
+import ua.nanit.limbo.server.Log;
 
 /**
  * Manages sing-box proxy: downloads the binary, generates Reality keys,
@@ -40,17 +41,17 @@ public final class SingBoxManager {
                 currentProcess = startProcess(configPath);
                 int exitCode = currentProcess.waitFor();
                 if (exitCode == 0) {
-                    System.out.println("[SBX] sing-box exited cleanly (exit=0), stopping watchdog");
+                    Log.info("[SBX] sing-box exited cleanly (exit=0), stopping watchdog");
                     break;
                 }
-                System.err.println("[SBX] sing-box died (exit=" + exitCode + "), restarting in 3s...");
+                Log.warn("[SBX] sing-box died (exit=" + exitCode + "), restarting in 3s...");
                 Thread.sleep(3000);
             } catch (InterruptedException e) {
-                System.err.println("[SBX] Watchdog interrupted, stopping");
+                Log.warn("[SBX] Watchdog interrupted, stopping");
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                System.err.println("[SBX] Error: " + e.getMessage() + ", restarting in 10s...");
+                Log.warn("[SBX] Error: " + e.getMessage() + ", restarting in 10s...");
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException ie) {
@@ -62,7 +63,7 @@ public final class SingBoxManager {
     }
 
     private static Process startProcess(Path configPath) throws Exception {
-        System.out.println("[SBX] Starting sing-box...");
+        Log.info("[SBX] Starting sing-box...");
         ProcessBuilder pb = new ProcessBuilder(
                 getBinaryPath().toString(),
                 "run", "-c", configPath.toAbsolutePath().toString());
@@ -78,7 +79,7 @@ public final class SingBoxManager {
     public static void shutdown() {
         Process p = currentProcess;
         if (p != null && p.isAlive()) {
-            System.out.println("[SBX] Terminating sing-box...");
+            Log.info("[SBX] Terminating sing-box...");
             p.destroy();
         }
     }
@@ -109,7 +110,7 @@ public final class SingBoxManager {
         Path keyFile = certDir.resolve("key.pem");
 
         if (!certFile.toFile().exists()) {
-            System.out.println("[SBX] Generating self-signed certificate...");
+            Log.info("[SBX] Generating self-signed certificate...");
             try {
                 ProcessBuilder pb1 = new ProcessBuilder("openssl", "ecparam", "-genkey", "-name", "prime256v1",
                     "-out", keyFile.toAbsolutePath().toString());
@@ -348,17 +349,17 @@ public final class SingBoxManager {
         String shortId = env.getOrDefault("REALITY_SHORT_ID", "");
 
         if (!privateKey.isEmpty() && !shortId.isEmpty()) {
-            System.out.println("[SBX] Using provided Reality keys");
+            Log.info("[SBX] Using provided Reality keys");
             return;
         }
 
         String realityPort = env.getOrDefault("REALITY_PORT", "");
         if (realityPort.isEmpty()) {
-            System.out.println("[SBX] No REALITY_PORT set, skipping Reality key generation");
+            Log.info("[SBX] No REALITY_PORT set, skipping Reality key generation");
             return;
         }
 
-        System.out.println("[SBX] Generating Reality keypair...");
+        Log.info("[SBX] Generating Reality keypair...");
         Path singBoxPath = getBinaryPath();
         ProcessBuilder pb = new ProcessBuilder(singBoxPath.toString(), "generate", "reality-keypair");
         pb.redirectErrorStream(true);
@@ -369,7 +370,7 @@ public final class SingBoxManager {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                System.out.println("[SBX] " + line);
+                Log.info("[SBX] " + line);
                 if (line.startsWith("PrivateKey")) {
                     privKey = line.substring(line.indexOf(':') + 1).trim();
                 } else if (line.startsWith("PublicKey")) {
@@ -388,9 +389,9 @@ public final class SingBoxManager {
         }
         env.put("REALITY_PUBLIC_KEY", pubKey);
 
-        System.out.println("[SBX] Reality PublicKey: " + pubKey);
-        System.out.println("[SBX] Reality ShortId: " + env.get("REALITY_SHORT_ID"));
-        System.out.println("[SBX] (PrivateKey saved in config, not printed for security)");
+        Log.info("[SBX] Reality PublicKey: " + pubKey);
+        Log.info("[SBX] Reality ShortId: " + env.get("REALITY_SHORT_ID"));
+        Log.info("[SBX] (PrivateKey saved in config, not printed for security)");
     }
 
     // ==================== Binary Management ====================
@@ -414,7 +415,7 @@ public final class SingBoxManager {
         } else if (osArch.contains("arm")) {
             arch = "armv7";
         } else {
-            throw new RuntimeException("Unsupported architecture: " + osArch);
+            throw new IOException("Unsupported architecture: " + osArch);
         }
 
         String platform = osName.contains("linux") ? "linux" :
@@ -427,7 +428,7 @@ public final class SingBoxManager {
         Path binPath = Paths.get(System.getProperty("java.io.tmpdir"), "sbx");
 
         if (!binPath.toFile().exists()) {
-            System.out.println("[SBX] Downloading sing-box " + version + " (" + arch + ")...");
+            Log.info("[SBX] Downloading sing-box " + version + " (" + arch + ")...");
             try (InputStream in = new URL(url).openStream()) {
                 Files.copy(in, tarPath, StandardCopyOption.REPLACE_EXISTING);
             }
@@ -485,10 +486,10 @@ public final class SingBoxManager {
         try {
             Files.walk(dir).sorted(Comparator.reverseOrder())
                 .forEach(p -> { try { Files.delete(p); } catch (Exception e) {
-                    System.err.println("[SBX] Cannot delete file during cleanup: " + p);
+                    Log.warn("[SBX] Cannot delete file during cleanup: " + p);
                 }});
         } catch (Exception e) {
-            System.err.println("[SBX] Failed to walk directory during cleanup: " + dir);
+            Log.warn("[SBX] Failed to walk directory during cleanup: " + dir);
         }
     }
 }

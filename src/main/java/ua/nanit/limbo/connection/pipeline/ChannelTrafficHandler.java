@@ -10,6 +10,8 @@ import java.util.Arrays;
 
 public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
 
+    private static final int DEFAULT_BUCKET_COUNT = 150;
+
     private final int maxPacketSize;
     private final double maxPacketRate;
     private final PacketBucket packetBucket;
@@ -17,7 +19,9 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
     public ChannelTrafficHandler(int maxPacketSize, double interval, double maxPacketRate) {
         this.maxPacketSize = maxPacketSize;
         this.maxPacketRate = maxPacketRate;
-        this.packetBucket = (interval > 0.0 && maxPacketRate > 0.0) ? new PacketBucket(interval * 1000.0, 150) : null;
+        this.packetBucket = (interval > 0.0 && maxPacketRate > 0.0)
+                ? new PacketBucket(interval * 1000.0, DEFAULT_BUCKET_COUNT)
+                : null;
     }
 
     @Override
@@ -34,7 +38,8 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
             if (packetBucket != null) {
                 packetBucket.incrementPackets(1);
                 if (packetBucket.getCurrentPacketRate() > maxPacketRate) {
-                    closeConnection(ctx, "Closed %s due to many packets sent (%d in the last %.1f seconds)", ctx.channel().remoteAddress(), packetBucket.sum, (packetBucket.intervalTime / 1000.0));
+                    closeConnection(ctx, "Closed %s due to many packets sent (%d in the last %.1f seconds)",
+                            ctx.channel().remoteAddress(), packetBucket.sum, (packetBucket.intervalTime / 1000.0));
                     return;
                 }
             }
@@ -48,10 +53,7 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
         Log.info(reason, args);
     }
 
-    private static class PacketBucket {
-        private static final double NANOSECONDS_TO_MILLISECONDS = 1.0e-6;
-        private static final int MILLISECONDS_TO_SECONDS = 1000;
-
+    static class PacketBucket {
         private final double intervalTime;
         private final double intervalResolution;
         private final int[] data;
@@ -59,19 +61,18 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
         private double lastBucketTime;
         private int sum;
 
-        public PacketBucket(final double intervalTime, final int totalBuckets) {
+        PacketBucket(final double intervalTime, final int totalBuckets) {
             this.intervalTime = intervalTime;
             this.intervalResolution = intervalTime / totalBuckets;
             this.data = new int[totalBuckets];
+            this.lastBucketTime = System.nanoTime() / 1_000_000.0;
         }
 
-        public void incrementPackets(final int packets) {
-            double timeMs = System.nanoTime() * NANOSECONDS_TO_MILLISECONDS;
+        void incrementPackets(final int packets) {
+            double timeMs = System.nanoTime() / 1_000_000.0;
             double timeDelta = timeMs - this.lastBucketTime;
 
-            if (timeDelta < 0.0) {
-                timeDelta = 0.0;
-            }
+            if (timeDelta < 0.0) timeDelta = 0.0;
 
             if (timeDelta < this.intervalResolution) {
                 this.data[this.newestData] += packets;
@@ -79,10 +80,9 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
                 return;
             }
 
-            int bucketsToMove = (int)(timeDelta / this.intervalResolution);
-            double nextBucketTime = this.lastBucketTime + bucketsToMove * this.intervalResolution;
+            int bucketsToAdvance = (int) (timeDelta / this.intervalResolution);
 
-            if (bucketsToMove >= this.data.length) {
+            if (bucketsToAdvance >= this.data.length) {
                 Arrays.fill(this.data, 0);
                 this.data[0] = packets;
                 this.sum = packets;
@@ -91,21 +91,22 @@ public class ChannelTrafficHandler extends ChannelInboundHandlerAdapter {
                 return;
             }
 
-            for (int i = 1; i < bucketsToMove; ++i) {
+            // Clear all buckets from current position up to the new position
+            for (int i = 0; i < bucketsToAdvance; i++) {
                 int index = (this.newestData + i) % this.data.length;
                 this.sum -= this.data[index];
                 this.data[index] = 0;
             }
 
-            int newestDataIndex = (this.newestData + bucketsToMove) % this.data.length;
+            int newestDataIndex = (this.newestData + bucketsToAdvance) % this.data.length;
             this.sum += packets - this.data[newestDataIndex];
             this.data[newestDataIndex] = packets;
             this.newestData = newestDataIndex;
-            this.lastBucketTime = nextBucketTime;
+            this.lastBucketTime += bucketsToAdvance * this.intervalResolution;
         }
 
-        public double getCurrentPacketRate() {
-            return this.sum / (this.intervalTime / MILLISECONDS_TO_SECONDS);
+        double getCurrentPacketRate() {
+            return this.sum / (this.intervalTime / 1000.0);
         }
     }
 }

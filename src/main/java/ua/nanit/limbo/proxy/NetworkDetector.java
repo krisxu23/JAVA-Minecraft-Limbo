@@ -6,6 +6,7 @@ import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
+import ua.nanit.limbo.server.Log;
 
 /**
  * Network detection utilities: public IP discovery, Reality dest SNI probing,
@@ -43,7 +44,7 @@ public final class NetworkDetector {
                     conn.disconnect();
                 }
             } catch (Exception e) {
-                System.err.println("[SBX] IP service " + service + " failed: " + e.getMessage());
+                Log.warn("[SBX] IP service " + service + " failed: " + e.getMessage());
             }
         }
         return "127.0.0.1";
@@ -63,7 +64,7 @@ public final class NetworkDetector {
                 socket.connect(new InetSocketAddress(host, 443), 2000);
                 return host;
             } catch (Exception e) {
-                System.err.println("[SBX] Reality dest " + host + " unreachable: " + e.getMessage());
+                Log.warn("[SBX] Reality dest " + host + " unreachable: " + e.getMessage());
             }
         }
         return "www.iij.ad.jp"; // all failed, use fallback default
