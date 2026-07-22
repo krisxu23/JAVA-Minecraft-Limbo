@@ -73,12 +73,8 @@ public class PacketEncoder extends MessageToByteEncoder<Packet> {
     }
 
     private String stateName() {
+        if (currentState != null) return currentState.name();
         if (registry == null) return "NO_REGISTRY";
-        for (State state : State.values()) {
-            if (state.clientBound == registry || state.serverBound == registry) {
-                return state.name();
-            }
-        }
         return "UNKNOWN";
     }
 
@@ -87,6 +83,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet> {
     }
 
     public void updateState(State state) {
+        this.currentState = state;
         this.registry = state.clientBound.getRegistry(version);
     }
 }
