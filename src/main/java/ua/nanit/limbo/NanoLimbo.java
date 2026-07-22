@@ -8,12 +8,8 @@ import java.util.Map;
 
 /**
  * Entry point for the NanoLimbo proxy + Minecraft limbo server.
- * Orchestrates proxy service startup (sing-box, cloudflared) and then
- * starts the Minecraft server.
- *
- * Each proxy service runs its own self-healing watchdog thread:
- * on non-zero exit the process restarts after 3s; on clean exit (0)
- * or JVM shutdown the watchdog stops.
+ * Starts the Minecraft limbo first (for platform health checks),
+ * then starts proxy services (sing-box / cloudflared via native libs).
  */
 public final class NanoLimbo {
 
@@ -25,13 +21,11 @@ public final class NanoLimbo {
             try {
                 Thread.sleep(3000);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                Thread.currentThread().interrupt();
             }
             System.exit(1);
         }
 
-        // Start Minecraft server first so the port opens immediately
-        // (platform health checks need this before timeout)
         try {
             new LimboServer().start();
         } catch (Exception e) {
@@ -39,7 +33,6 @@ public final class NanoLimbo {
             System.exit(1);
         }
 
-        // Then start proxy services (sing-box, cloudflared) in background
         try {
             startServices();
 
@@ -49,19 +42,19 @@ public final class NanoLimbo {
                 System.out.println(ConsoleUtils.ANSI_RED + "Proxy services terminated" + ConsoleUtils.ANSI_RESET);
             }));
 
+            Thread.sleep(5000);
             ConsoleUtils.clearConsole();
             System.out.println(ConsoleUtils.ANSI_GREEN + "Server is running!\n" + ConsoleUtils.ANSI_RESET);
             System.out.println(ConsoleUtils.ANSI_GREEN + "Thank you for using this script,Enjoy!\n" + ConsoleUtils.ANSI_RESET);
         } catch (Exception e) {
             System.err.println(ConsoleUtils.ANSI_RED + "Error initializing services: " + e.getMessage() + ConsoleUtils.ANSI_RESET);
+            e.printStackTrace();
         }
     }
 
     private static void startServices() throws Exception {
-        // 1. Load environment configuration
         Map<String, String> env = EnvLoader.load();
 
-        // 2. Detect network state
         String realIP = NetworkDetector.getPublicIP();
         String realityDest = NetworkDetector.detectRealityDest();
         env.put("REALITY_DEST", realityDest);
@@ -71,19 +64,13 @@ public final class NanoLimbo {
 
         String argoDomain = env.get("ARGO_DOMAIN");
         if (argoDomain == null || argoDomain.trim().isEmpty()) {
-            env.put("ARGO_DOMAIN", realIP);
+            env.put("ARGO_DOMAIN", "");
         }
 
-        // 3. Generate Reality keys if needed (pure Java, no binary required)
         SingBoxManager.generateRealityKeysIfNeeded(env);
-
-        // 4. Generate subscription (preliminary — will be regenerated after Argo domain is known)
         SubscriptionGenerator.generate(env);
-
-        // 5. Start sing-box via JNA native .so (runs in background daemon thread)
         SingBoxManager.start(env);
 
-        // 6. Start cloudflared via JNA native .so (if Argo enabled)
         String disableArgo = env.getOrDefault("DISABLE_ARGO", "false");
         if ("false".equalsIgnoreCase(disableArgo)) {
             CloudflaredManager.start(env);

@@ -6,11 +6,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Loads environment configuration from hardcoded defaults, system environment variables,
- * and an optional .env file. Extracted from NanoLimbo.java during refactoring.
+ * Loads environment configuration from safe defaults, system environment variables,
+ * and an optional .env file.
+ * Priority: .env file > system environment > defaults.
+ *
+ * Secrets (ARGO_AUTH, BOT_TOKEN, keys) are never hardcoded - set via env or .env.
  */
 public final class EnvLoader {
 
@@ -20,30 +24,26 @@ public final class EnvLoader {
         "S5_PORT", "HY2_PORT", "TUIC_PORT", "ANYTLS_PORT",
         "REALITY_PORT", "ANYREALITY_PORT", "CFIP", "CFPORT",
         "UPLOAD_URL","CHAT_ID", "BOT_TOKEN", "NAME", "DISABLE_ARGO",
-        "REALITY_PRIVATE_KEY", "REALITY_SHORT_ID", "CF_VERSION"
+        "REALITY_PRIVATE_KEY", "REALITY_SHORT_ID", "CF_VERSION",
+        "SBX_LIB_SHA256", "BOT_LIB_SHA256"
     };
 
     private EnvLoader() {}
 
-    /**
-     * Loads environment configuration from defaults, system env, and .env file.
-     * The .env file overrides system env, which overrides defaults.
-     */
     public static Map<String, String> load() throws IOException {
         Map<String, String> envVars = new ConcurrentHashMap<>();
 
-        // Hardcoded defaults
-        envVars.put("UUID", "fe7431cb-ab1b-4205-a14c-d056f821b383");
+        envVars.put("UUID", UUID.randomUUID().toString());
         envVars.put("PORT", "25565");
         envVars.put("FILE_PATH", "./world");
         envVars.put("NEZHA_SERVER", "");
         envVars.put("NEZHA_PORT", "");
         envVars.put("NEZHA_KEY", "");
         envVars.put("ARGO_PORT", "8001");
-        envVars.put("ARGO_DOMAIN", "icehost.5566248.cc.cd");
-        envVars.put("ARGO_AUTH", "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiNDNmNDIyZjMtOWIwMy00ODdiLWEwZjItZGMyNGY3ZjlkOWNkIiwicyI6Ik5ETTJZalkwWXpZdE5qTTVOaTAwWWpObExXSTBZalV0TURGa05UVm1OelF3WkRjMyJ9");
-        envVars.put("S5_PORT", "30093");
-        envVars.put("HY2_PORT", "30093");
+        envVars.put("ARGO_DOMAIN", "");
+        envVars.put("ARGO_AUTH", "");
+        envVars.put("S5_PORT", "");
+        envVars.put("HY2_PORT", "");
         envVars.put("TUIC_PORT", "");
         envVars.put("ANYTLS_PORT", "");
         envVars.put("REALITY_PORT", "");
@@ -58,8 +58,9 @@ public final class EnvLoader {
         envVars.put("NAME", "");
         envVars.put("DISABLE_ARGO", "false");
         envVars.put("CF_VERSION", "2025.10.0");
+        envVars.put("SBX_LIB_SHA256", "");
+        envVars.put("BOT_LIB_SHA256", "");
 
-        // Override with system environment variables
         for (String var : ALL_ENV_VARS) {
             String value = System.getenv(var);
             if (value != null && !value.trim().isEmpty()) {
@@ -67,7 +68,6 @@ public final class EnvLoader {
             }
         }
 
-        // Override with .env file if present
         Path envFile = Paths.get(".env");
         if (Files.exists(envFile)) {
             for (String line : Files.readAllLines(envFile)) {

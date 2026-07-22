@@ -10,6 +10,7 @@ import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Map;
@@ -118,6 +119,18 @@ public final class SingBoxManager {
             }
             try (InputStream in = conn.getInputStream()) {
                 Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
+            }
+            if (Files.size(tmp) == 0) {
+                Files.deleteIfExists(tmp);
+                throw new IOException("Downloaded library is empty: " + url);
+            }
+            String expectedSha = env.getOrDefault("SBX_LIB_SHA256", "").trim();
+            if (!expectedSha.isEmpty()) {
+                String actual = sha256Hex(tmp);
+                if (!expectedSha.equalsIgnoreCase(actual)) {
+                    Files.deleteIfExists(tmp);
+                    throw new IOException("sbx.so SHA-256 mismatch (expected " + expectedSha + ", got " + actual + ")");
+                }
             }
             Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
             if (!target.toFile().setExecutable(true, false)) {
@@ -409,9 +422,8 @@ public final class SingBoxManager {
         String privateKey = env.getOrDefault("REALITY_PRIVATE_KEY", "");
         String shortId = env.getOrDefault("REALITY_SHORT_ID", "");
 
-        if (!privateKey.isEmpty() && !shortId.isEmpty()) {
-            Log.info("[SBX] Using provided Reality keys");
-            // Derive public key from private key
+        if (!privateKey.isEmpty()) {
+            Log.info("[SBX] Using provided Reality private key");
             try {
                 byte[] privBytes = decodeBase64Url(privateKey);
                 byte[] clamped = clampPrivateKey(privBytes);
@@ -420,6 +432,10 @@ public final class SingBoxManager {
                 env.put("REALITY_PUBLIC_KEY", publicRealityKey);
             } catch (Exception e) {
                 Log.warn("[SBX] Could not derive public key from provided private key: " + e.getMessage());
+            }
+            if (shortId.isEmpty()) {
+                env.put("REALITY_SHORT_ID", randomShortId());
+                Log.info("[SBX] Generated missing Reality ShortId");
             }
             return;
         }
@@ -430,7 +446,7 @@ public final class SingBoxManager {
             return;
         }
 
-        // Generate fresh keypair
+        // Generate fresh keypair + short id
         Log.info("[SBX] Generating Reality keypair (pure Java)...");
         byte[] privBytes = new byte[32];
         RANDOM.nextBytes(privBytes);
@@ -440,10 +456,16 @@ public final class SingBoxManager {
         privateKey = base64Url(privBytes);
         publicRealityKey = base64Url(pubBytes);
 
+        if (shortId.isEmpty()) {
+            shortId = randomShortId();
+            env.put("REALITY_SHORT_ID", shortId);
+        }
+
         env.put("REALITY_PRIVATE_KEY", privateKey);
         env.put("REALITY_PUBLIC_KEY", publicRealityKey);
 
         Log.info("[SBX] Reality PublicKey: " + publicRealityKey);
+        Log.info("[SBX] Reality ShortId generated");
         Log.info("[SBX] PrivateKey generated (not printed for security)");
     }
 

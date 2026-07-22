@@ -10,6 +10,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -63,7 +64,7 @@ public final class CloudflaredManager {
                     "  - hostname: " + argoDomain + "\n" +
                     "    service: http://localhost:" + env.getOrDefault("ARGO_PORT", "8001") + "\n" +
                     "    originRequest:\n" +
-                    "    noTLSVerify: true\n" +
+                    "      noTLSVerify: true\n" +
                     "  - service: http_status:404\n";
             Files.write(runtimeDir.resolve("tunnel.yml"), yaml.getBytes(StandardCharsets.UTF_8));
             Log.info("[CF] TunnelSecret config files written");
@@ -271,6 +272,18 @@ public final class CloudflaredManager {
             try (InputStream in = conn.getInputStream()) {
                 Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
             }
+            if (Files.size(tmp) == 0) {
+                Files.deleteIfExists(tmp);
+                throw new IOException("Downloaded library is empty: " + url);
+            }
+            String expectedSha = env.getOrDefault("BOT_LIB_SHA256", "").trim();
+            if (!expectedSha.isEmpty()) {
+                String actual = sha256Hex(tmp);
+                if (!expectedSha.equalsIgnoreCase(actual)) {
+                    Files.deleteIfExists(tmp);
+                    throw new IOException("bot.so SHA-256 mismatch (expected " + expectedSha + ", got " + actual + ")");
+                }
+            }
             Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
             if (!target.toFile().setExecutable(true, false)) {
                 Log.warn("[CF] Failed to set executable on " + target);
@@ -291,6 +304,20 @@ public final class CloudflaredManager {
             return "arm64";
         } else {
             throw new RuntimeException("Unsupported architecture: " + arch);
+        }
+    }
+
+    private static String sha256Hex(Path file) throws IOException {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(Files.readAllBytes(file));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 not available", e);
         }
     }
 
