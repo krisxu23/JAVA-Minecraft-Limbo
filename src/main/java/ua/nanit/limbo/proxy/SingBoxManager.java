@@ -439,15 +439,39 @@ public final class SingBoxManager {
                         java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new URL(mirrors[m]).openConnection();
                         try {
                             conn.setConnectTimeout(15000); conn.setReadTimeout(60000);
-                            try (InputStream in = conn.getInputStream()) { Files.copy(in, tarPath, StandardCopyOption.REPLACE_EXISTING); }
+                            int contentLength = conn.getContentLength();
+                            try (InputStream in = conn.getInputStream()) {
+                                Files.copy(in, tarPath, StandardCopyOption.REPLACE_EXISTING);
+                            }
+                            // Verify downloaded file integrity
+                            if (Files.size(tarPath) == 0) {
+                                throw new IOException("Downloaded file is empty");
+                            }
+                            if (contentLength > 0 && Files.size(tarPath) != contentLength) {
+                                Files.deleteIfExists(tarPath);
+                                throw new IOException("Incomplete download: expected " + contentLength + " bytes, got " + Files.size(tarPath));
+                            }
+                            // Verify tar.gz integrity
+                            ProcessBuilder verifyPb = new ProcessBuilder("tar", "-tzf", tarPath.toAbsolutePath().toString());
+                            verifyPb.redirectErrorStream(true);
+                            Process verifyProc = verifyPb.start();
+                            int verifyExit = verifyProc.waitFor();
+                            if (verifyExit != 0) {
+                                Files.deleteIfExists(tarPath);
+                                throw new IOException("tar integrity check failed (exit=" + verifyExit + ")");
+                            }
                             downloaded = true;
-                            Log.info("[SBX] Download succeeded from mirror " + (m+1) + " attempt " + attempt);
+                            Log.info("[SBX] Download succeeded from mirror " + (m+1) + " attempt " + attempt + " (" + Files.size(tarPath) + " bytes)");
                         } finally { conn.disconnect(); }
                     } catch (IOException e) {
                         lastErr = e;
+                        Log.warn("[SBX] Mirror " + (m+1) + " attempt " + attempt + " failed: " + e.getMessage());
                         if (attempt < 3) {
                             try { Thread.sleep(3000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                         }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Interrupted while verifying download");
                     }
                 }
             }
