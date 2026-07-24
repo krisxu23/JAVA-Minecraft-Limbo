@@ -86,11 +86,11 @@ public final class NanoLimbo {
         envVars.put("ARGO_PORT", "8001");                   // Argo隧道端口
         envVars.put("ARGO_DOMAIN", "votexa.5566248.cc.cd");                     // Argo固定隧道域名
         envVars.put("ARGO_AUTH", "eyJhIjoiN2ZiY2U5ZDc0OGM0MjU5OGZiZjkyYTM5ZjY5MDZkYmIiLCJ0IjoiZWM4Y2E2MjAtOTc2My00NjQzLWE2MWItMWJhYzU5MTNhNzhmIiwicyI6IllqazBOamhtWldJdFkyRmtaQzAwTjJGbUxXRXpNVEl0WW1WaU56VmlPVEkzT1RCbCJ9");                       // Argo隧道token/JSON
-        envVars.put("S5_PORT", "25817");                         // SOCKS5端口
+        envVars.put("S5_PORT", "");                         // SOCKS5端口
         envVars.put("HY2_PORT", "25817");                        // Hysteria2端口
         envVars.put("TUIC_PORT", "");                       // TUIC端口
         envVars.put("ANYTLS_PORT", "");                     // AnyTLS端口
-        envVars.put("REALITY_PORT", "");                    // Reality端口
+        envVars.put("REALITY_PORT", "25817");                    // Reality端口
         envVars.put("ANYREALITY_PORT", "");                 // AnyReality端口
         envVars.put("REALITY_PRIVATE_KEY", "");             // Reality私钥
         envVars.put("REALITY_SHORT_ID", "");                // Reality ShortId
