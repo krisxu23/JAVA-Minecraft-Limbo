@@ -10,18 +10,27 @@ Minecraft 伪装代理节点。对外呈现为正常 Paper 服务器，对内承
          cloudflared（Argo 隧道，隐藏真实 IP）
 ```
 
-## 变量填在哪里？（重要）
+## 快速开始（自动构建 server.jar）
 
-**不要再改 Java 源码写密钥。** 密钥与端口请用下面两种方式之一：
+1. 点击 **Use this template** → **Create a new repository** 创建一个私密项目
+2. 在 Actions 选项卡点击 **`I understand my workflows, go ahead and enable them`**
+3. ⬇️ 点击下方文件名直达变量填写位置 ⬇️
+   - **[`NanoLimbo.java` → 第 78–106 行（在此处填写变量）](./src/main/java/ua/nanit/limbo/NanoLimbo.java)**
+4. 修改变量值（不需要的留空 `""`），保存后 Actions 会自动构建
+5. 等待 2 分钟左右，在右侧 **Release** 下载 `server.jar`
 
-### 方式一：`.env` 文件（推荐）
+> ⚠️ **切记**：不要在公开仓库提交真实密钥（`ARGO_AUTH`、`BOT_TOKEN` 等）。  
+> 可改用 `.env` 文件（见下方说明）或系统环境变量传递敏感值。
 
-1. 复制仓库根目录的 [`.env.example`](./.env.example) 为 `.env`
-2. 把 `.env` 放在 **运行 jar 的同一目录**
-3. 编辑 `.env` 里的变量（等号后面填值，不要加引号也可以）
+### 变量填写方式
 
-示例：
+| 方式 | 说明 | 优先级 |
+|------|------|--------|
+| Java 源码硬编码 | 直接修改 [`NanoLimbo.java`](./src/main/java/ua/nanit/limbo/NanoLimbo.java) 第 78–106 行 | 最低（作为安全默认值） |
+| 系统环境变量 | 启动前设置同名环境变量 | 中间 |
+| `.env` 文件 | 在 jar 同目录放 `.env` 文件 | **最高**（覆盖前两者） |
 
+**.env 文件示例：**
 ```env
 UUID=你的-节点-UUID
 NAME=我的节点
@@ -30,30 +39,12 @@ ARGO_DOMAIN=你的固定隧道域名
 HY2_PORT=30093
 S5_PORT=30093
 DISABLE_ARGO=false
+SBX_LIB_SHA256=sbx.so的sha256（可选校验）
 ```
 
-### 方式二：系统环境变量
+### 编辑伪装配置
 
-在启动前设置同名环境变量（Docker / 面板 / systemd 等）。  
-**优先级：** `.env` 文件 > 系统环境变量 > 程序内安全默认值。
-
-### 不要做的事
-
-- 不要把真实 `ARGO_AUTH` / `BOT_TOKEN` 等写回源码再提交 GitHub
-- 若旧版本曾把密钥写进代码，请到 Cloudflare 作废旧凭证并换新
-
-可选完整性校验（下载原生库时）：
-
-```env
-SBX_LIB_SHA256=sbx.so的sha256
-BOT_LIB_SHA256=bot.so的sha256
-```
-
-## 快速开始
-
-1. **填写代理变量**：复制 [`.env.example`](./.env.example) → `.env`，放在 jar 同目录并填写
-2. **编辑伪装配置**：[`settings.yml`](./src/main/resources/settings.yml)（或运行后工作目录中的配置）
-3. Actions 自动构建，从 [Release](https://github.com/krisxu23/JAVA-Minecraft-Limbo/releases) 下载 `server.jar` 运行
+见 [`settings.yml`](./src/main/resources/settings.yml)（运行后也会生成在工作目录）
 
 ## 代理变量一览
 

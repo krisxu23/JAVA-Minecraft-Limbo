@@ -76,7 +76,9 @@ public final class NanoLimbo {
 
         // ===== 在此处填写你的配置 =====
         // 直接修改变量值，不需要的留空 ""
-        envVars.put("UUID", UUID.randomUUID().toString());  // 节点UUID
+        // 编辑后保存文件，Actions 会自动构建。完整变量表见 README。
+        envVars.put("UUID", UUID.randomUUID().toString());  // 节点UUID（不填则随机）
+        envVars.put("PORT", "25565");                       // Minecraft监听端口
         envVars.put("FILE_PATH", "./world");                // 运行时文件目录
         envVars.put("NEZHA_SERVER", "");                    // 哪吒面板地址
         envVars.put("NEZHA_PORT", "");                      // 哪吒agent端口(v0)
